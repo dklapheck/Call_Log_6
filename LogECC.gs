@@ -1,199 +1,268 @@
 const ECC_HANDOFF_PREFIX_ = 'ECC_HANDOFF_V1:';
 
-function saveEccEntry() {
+function setupEccBatchLayout() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = getRequiredSheet_(ss, APP_CONFIG.sheets.ecc);
+
+  let checkInCol = findOptionalHeaderColumn_(sheet, 'ECC Check-In');
+  const legacyRecentCol = findOptionalHeaderColumn_(sheet, 'Recent ECC Notes');
+  if (!checkInCol && legacyRecentCol) {
+    sheet.getRange(1, legacyRecentCol).setValue('ECC Check-In');
+    checkInCol = legacyRecentCol;
+  }
+
+  let historyCol = findOptionalHeaderColumn_(sheet, 'ECC History');
+  const legacyHistoryCol = findOptionalHeaderColumn_(sheet, 'Old ECC Dates and Notes');
+  if (!historyCol && legacyHistoryCol) {
+    sheet.getRange(1, legacyHistoryCol).setValue('ECC History');
+    historyCol = legacyHistoryCol;
+  }
+
+  if (!checkInCol) {
+    checkInCol = Math.min(5, sheet.getLastColumn() + 1);
+    ensureSheetColumns_(sheet, checkInCol);
+    sheet.getRange(1, checkInCol).setValue('ECC Check-In');
+  }
+
+  if (!historyCol) {
+    historyCol = checkInCol + 1;
+    sheet.insertColumnAfter(checkInCol);
+    sheet.getRange(1, historyCol).setValue('ECC History');
+  }
+
+  const desired = [
+    'ECC Academics',
+    'ECC Engagement',
+    'ECC Follow-Up / To Do',
+    'ECC Type',
+    'Ready to Log'
+  ];
+
+  const missing = desired.filter(function(header) {
+    return findOptionalHeaderColumn_(sheet, header) === null;
+  });
+
+  if (missing.length) {
+    sheet.insertColumnsAfter(historyCol, missing.length);
+    missing.forEach(function(header, i) {
+      sheet.getRange(1, historyCol + 1 + i).setValue(header);
+    });
+  }
+
+  const cols = getEccBatchColumns_(sheet);
+  const maxRows = Math.max(sheet.getMaxRows() - 1, 1);
+
+  const typeRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Conversation', 'Attempt'], true)
+    .setAllowInvalid(false)
+    .build();
+
+  sheet.getRange(2, cols.type, maxRows, 1).setDataValidation(typeRule);
+  sheet.getRange(2, cols.ready, maxRows, 1).insertCheckboxes();
+
+  [cols.checkIn, cols.history, cols.academics, cols.engagement, cols.followUp].forEach(function(col) {
+    sheet.getRange(2, col, maxRows, 1).setWrap(true).setVerticalAlignment('top');
+  });
+
+  sheet.getRange(1, cols.ready).setNote(
+    'Check this box for every student you want to log, then use Teacher Tools > Log Ready ECC Rows.'
+  );
+
+  ss.toast(
+    'ECC is ready for batch entry. Column F/history formatting was preserved.',
+    'ECC Batch Layout Ready',
+    6
+  );
+}
+
+function logReadyEccRows() {
   return withRosterLock_(function() {
-    const result = saveEccEntry_(false);
-    if (result) SpreadsheetApp.getActiveSpreadsheet().toast('ECC entry saved for ' + result.studentNumber + '.', 'ECC Saved', 4);
-    return result;
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = getRequiredSheet_(ss, APP_CONFIG.sheets.ecc);
+    const cols = getEccBatchColumns_(sheet);
+    const lastRow = sheet.getLastRow();
+
+    let logged = 0;
+    const problems = [];
+
+    for (let row = 2; row <= lastRow; row++) {
+      if (sheet.getRange(row, cols.ready).getValue() !== true) continue;
+
+      try {
+        const result = logEccRow_(sheet, row, cols, true);
+        if (result) logged++;
+      } catch (error) {
+        problems.push('Row ' + row + ': ' + error.message);
+      }
+    }
+
+    SpreadsheetApp.flush();
+
+    let message = logged + ' ECC row' + (logged === 1 ? '' : 's') + ' logged.';
+    if (problems.length) {
+      message += '\n\nNot logged:\n' + problems.slice(0, 8).join('\n');
+      if (problems.length > 8) message += '\n…and ' + (problems.length - 8) + ' more.';
+    }
+
+    SpreadsheetApp.getUi().alert('ECC Batch Update', message, SpreadsheetApp.getUi().ButtonSet.OK);
   });
 }
 
-function saveEccEntryAndOpenPowerSchool() {
+function logCurrentEccRowAndOpenPowerSchool() {
   return withRosterLock_(function() {
-    const result = saveEccEntry_(true);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getActiveSheet();
+
+    if (sheet.getName() !== APP_CONFIG.sheets.ecc) {
+      SpreadsheetApp.getUi().alert('Select the student row on the ECC tab first.');
+      return;
+    }
+
+    const row = sheet.getActiveCell().getRow();
+    if (row <= 1) {
+      SpreadsheetApp.getUi().alert('Select a student row, not the header row.');
+      return;
+    }
+
+    const cols = getEccBatchColumns_(sheet);
+    const result = logEccRow_(sheet, row, cols, true);
     if (result) sendEccHandoff_(result);
-    return result;
   });
 }
 
-function saveEccEntry_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const form = getRequiredSheet_(ss, APP_CONFIG.sheets.eccEntry);
-  const ecc = getRequiredSheet_(ss, APP_CONFIG.sheets.ecc);
-  const scc = getRequiredSheet_(ss, APP_CONFIG.sheets.scc);
-  const studentData = getRequiredSheet_(ss, APP_CONFIG.sheets.studentData);
-
-  const studentNumber = normalizeId_(form.getRange('B2').getValue());
-  const date = form.getRange('B3').getValue();
-  const result = String(form.getRange('B4').getDisplayValue()).trim();
-  const note = String(form.getRange('B5').getValue() || '').trim();
-  const todo = String(form.getRange('B6').getValue() || '').trim();
-  const oneNote = String(form.getRange('B7').getValue() || '').trim();
-
-  if (!studentNumber || !(date instanceof Date) || ['Conversation','Attempt'].indexOf(result) === -1 || !note) {
-    SpreadsheetApp.getUi().alert('Enter a Student Number, date, Result (Conversation or Attempt), and ECC note.');
-    return null;
-  }
-
-  let row = findStudentRosterRow_(ecc, studentNumber);
-  if (!row) row = createEccRow_(ecc, scc, studentData, studentNumber);
-  if (!row) throw new Error('Student Number ' + studentNumber + ' was not found in SCC or StudentData.');
-
-  const dateCol = findHeaderColumn_(ecc, 'ECC Date');
-  const recentCol = findHeaderColumn_(ecc, 'Recent ECC Notes');
-  const oldCol = findHeaderColumn_(ecc, 'Old ECC Dates and Notes');
-  const attempt1Col = findHeaderColumn_(ecc, 'Attempt 1');
-  const attempt2Col = findHeaderColumn_(ecc, 'Attempt 2');
-  const linkCol = findOptionalHeaderColumn_(ecc, 'OneNote Link');
-  const dateLabel = Utilities.formatDate(date, ss.getSpreadsheetTimeZone(), 'M/d/yyyy');
-  const text = note + (todo ? '\nTo do: ' + todo : '');
-  const rendered = '-- ' + dateLabel + ': ' + text;
-
-  if (result === 'Conversation') {
-    const oldRecent = String(ecc.getRange(row, recentCol).getValue() || '').trim();
-    const history = String(ecc.getRange(row, oldCol).getValue() || '');
-    if (oldRecent === text || history.indexOf(rendered) !== -1) throw new Error('This ECC conversation appears to have been saved already.');
-
-    if (oldRecent) {
-      const previousDate = ecc.getRange(row, dateCol).getValue();
-      const previousLabel = previousDate instanceof Date
-        ? Utilities.formatDate(previousDate, ss.getSpreadsheetTimeZone(), 'M/d/yyyy')
-        : 'Earlier';
-      ecc.getRange(row, oldCol).setValue(appendHistoryEntry_(history, '-- ' + previousLabel + ': ' + oldRecent));
+function getEccBatchColumns_(sheet) {
+  function requiredAny(names) {
+    for (let i = 0; i < names.length; i++) {
+      const col = findOptionalHeaderColumn_(sheet, names[i]);
+      if (col !== null) return col;
     }
-    ecc.getRange(row, dateCol).setValue(date);
-    ecc.getRange(row, recentCol).setValue(text);
-  } else {
-    const first = ecc.getRange(row, attempt1Col);
-    const second = ecc.getRange(row, attempt2Col);
-    const history = String(ecc.getRange(row, oldCol).getValue() || '');
-    if (String(first.getValue() || '').indexOf(rendered) !== -1 ||
-        String(second.getValue() || '').indexOf(rendered) !== -1 ||
-        history.indexOf(rendered) !== -1) {
-      throw new Error('This ECC attempt appears to have been saved already.');
-    }
-    if (!first.getValue()) first.setValue(rendered);
-    else if (!second.getValue()) second.setValue(rendered);
-    else ecc.getRange(row, oldCol).setValue(appendHistoryEntry_(history, rendered));
-  }
-
-  if (linkCol && oneNote) ecc.getRange(row, linkCol).setValue(oneNote);
-  SpreadsheetApp.flush();
-  return { studentNumber: studentNumber, date: dateLabel, note: text };
-}
-
-function createEccRow_(ecc, scc, studentData, studentNumber) {
-  const sccRow = findStudentRosterRow_(scc, studentNumber);
-  const dataRow = findStudentRosterRow_(studentData, studentNumber);
-  if (!sccRow && !dataRow) return null;
-
-  const row = ecc.getLastRow() + 1;
-  ensureSheetRows_(ecc, row);
-  if (row > 2) {
-    ecc.getRange(row - 1, 1, 1, ecc.getLastColumn())
-      .copyTo(ecc.getRange(row, 1, 1, ecc.getLastColumn()), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
-  }
-
-  const eh = getHeaderIndexMap_(ecc.getRange(1,1,1,ecc.getLastColumn()).getDisplayValues()[0]);
-  const sh = getHeaderIndexMap_(scc.getRange(1,1,1,scc.getLastColumn()).getDisplayValues()[0]);
-  const dh = getHeaderIndexMap_(studentData.getRange(1,1,1,studentData.getLastColumn()).getDisplayValues()[0]);
-
-  function sourceValue(sccHeader, dataHeader) {
-    if (sccRow && typeof sh[sccHeader] !== 'undefined') return scc.getRange(sccRow, sh[sccHeader] + 1).getValue();
-    if (dataRow && dataHeader && typeof dh[dataHeader] !== 'undefined') return studentData.getRange(dataRow, dh[dataHeader] + 1).getValue();
-    return '';
-  }
-
-  const values = {
-    'Prefered Name': sourceValue('Prefered Name','Preferred Display Name'),
-    'Student Number': Number(studentNumber) || studentNumber,
-    'SCC Notes': sourceValue('SCC Notes',''),
-    'Small Group': sourceValue('Small Group',''),
-    'Student Email': sourceValue('Student Email','Effective Student Email'),
-    'LAST NAME': sourceValue('LAST NAME','Source Last Name'),
-    'FIRST NAME': sourceValue('FIRST NAME','Source First Name'),
-    'GRADE': sourceValue('GRADE','Grade'),
-    'START DATE': sourceValue('START DATE','Enroll Date'),
-    'SCHOOL': sourceValue('SCHOOL','School'),
-    'SPED': sourceValue('SPED','SPED/504')
-  };
-
-  Object.keys(values).forEach(function(header) {
-    if (typeof eh[header] !== 'undefined') ecc.getRange(row, eh[header] + 1).setValue(values[header]);
-  });
-  if (typeof eh['Name'] !== 'undefined') ecc.getRange(row, eh['Name'] + 1).setFormula('=L' + row + '&" "&K' + row);
-  if (typeof eh['Subject Line'] !== 'undefined') ecc.getRange(row, eh['Subject Line'] + 1).setFormula('=LEFT(L' + row + ',1)&" "&K' + row + '&", "&B' + row + '&", "&O' + row);
-  return row;
-}
-
-function archiveAndOpenPowerSchoolECC() {
-  const data = getCurrentECCRowData_();
-  if (!data) return;
-  archiveECCData_(data, false);
-  sendEccHandoff_({ studentNumber: data.studentNumber, date: data.date, note: data.note });
-}
-
-function archiveCurrentECCNote() {
-  const data = getCurrentECCRowData_();
-  if (data) archiveECCData_(data, true);
-}
-
-function getCurrentECCRowData_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getActiveSheet();
-  if (sheet.getName() !== APP_CONFIG.sheets.ecc) {
-    SpreadsheetApp.getUi().alert('Please select a student row on the ECC tab first.');
-    return null;
-  }
-  const row = sheet.getActiveCell().getRow();
-  if (row <= 1) {
-    SpreadsheetApp.getUi().alert('Please select a student row, not the header row.');
-    return null;
-  }
-
-  const studentCol = findHeaderColumn_(sheet, 'Student Number');
-  const dateCol = findHeaderColumn_(sheet, 'ECC Date');
-  const noteCol = findHeaderColumn_(sheet, 'Recent ECC Notes');
-  const oldCol = findHeaderColumn_(sheet, 'Old ECC Dates and Notes');
-
-  const studentNumber = normalizeId_(sheet.getRange(row, studentCol).getValue());
-  const date = sheet.getRange(row, dateCol).getDisplayValue().trim();
-  const note = sheet.getRange(row, noteCol).getDisplayValue().trim();
-  if (!studentNumber || !date || !note) {
-    SpreadsheetApp.getUi().alert('The selected ECC row needs a Student Number, ECC Date, and Recent ECC Notes.');
-    return null;
+    throw new Error(
+      'ECC is missing "' + names[0] +
+      '". Run Teacher Tools > Set Up / Repair ECC Batch Columns.'
+    );
   }
 
   return {
-    ss: ss,
-    studentNumber: studentNumber,
-    date: date,
-    note: note,
-    oldText: sheet.getRange(row, oldCol).getDisplayValue(),
-    oldCell: sheet.getRange(row, oldCol)
+    student: requiredAny(['Student Number']),
+    date: requiredAny(['ECC Date']),
+    checkIn: requiredAny(['ECC Check-In', 'Recent ECC Notes']),
+    history: requiredAny(['ECC History', 'Old ECC Dates and Notes']),
+    academics: requiredAny(['ECC Academics']),
+    engagement: requiredAny(['ECC Engagement']),
+    followUp: requiredAny(['ECC Follow-Up / To Do']),
+    type: requiredAny(['ECC Type']),
+    ready: requiredAny(['Ready to Log']),
+    attempt1: findOptionalHeaderColumn_(sheet, 'Attempt 1'),
+    attempt2: findOptionalHeaderColumn_(sheet, 'Attempt 2')
   };
 }
 
-function archiveECCData_(data, showToast) {
-  const entry = '-- ' + data.date + ': ' + data.note;
-  const updated = appendHistoryEntry_(data.oldText, entry);
-  if (updated === String(data.oldText || '').trim()) {
-    if (showToast) data.ss.toast('This ECC date/note is already in the archive.', 'ECC Tools', 4);
-    return true;
+function logEccRow_(sheet, row, cols, clearAfter) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const studentNumber = normalizeId_(sheet.getRange(row, cols.student).getValue());
+
+  if (!studentNumber) throw new Error('Student Number is blank.');
+
+  const date = sheet.getRange(row, cols.date).getValue();
+  if (!(date instanceof Date)) throw new Error('ECC Date is required.');
+
+  const checkIn = String(sheet.getRange(row, cols.checkIn).getValue() || '').trim();
+  const academics = String(sheet.getRange(row, cols.academics).getValue() || '').trim();
+  const engagement = String(sheet.getRange(row, cols.engagement).getValue() || '').trim();
+  const followUp = String(sheet.getRange(row, cols.followUp).getValue() || '').trim();
+  const typeValue = String(sheet.getRange(row, cols.type).getDisplayValue() || '').trim();
+  const type = typeValue || 'Conversation';
+
+  if (['Conversation', 'Attempt'].indexOf(type) === -1) {
+    throw new Error('ECC Type must be Conversation or Attempt.');
   }
-  data.oldCell.setValue(updated).setWrap(true);
-  if (showToast) data.ss.toast('ECC note archived for student ' + data.studentNumber + '.', 'ECC Tools', 4);
-  return true;
+
+  if (!checkIn && !academics && !engagement && !followUp) {
+    throw new Error('Enter at least one ECC note field.');
+  }
+
+  const dateLabel = Utilities.formatDate(date, ss.getSpreadsheetTimeZone(), 'M/d/yyyy');
+  const lines = ['-- ' + dateLabel + ' [' + type + ']'];
+
+  if (checkIn) lines.push('Check-in: ' + checkIn);
+  if (academics) lines.push('Academics: ' + academics);
+  if (engagement) lines.push('Engagement: ' + engagement);
+  if (followUp) lines.push('Follow-up / To do: ' + followUp);
+
+  const rendered = lines.join('\n');
+  const historyCell = sheet.getRange(row, cols.history);
+  const existingHistory = String(historyCell.getValue() || '');
+
+  if (eccHistoryContains_(existingHistory, rendered)) {
+    throw new Error('This exact ECC entry is already in the history.');
+  }
+
+  historyCell
+    .setValue(appendEccHistory_(existingHistory, rendered))
+    .setWrap(true)
+    .setVerticalAlignment('top');
+
+  if (type === 'Attempt') {
+    saveEccAttemptSummary_(sheet, row, cols, rendered);
+  }
+
+  if (clearAfter) {
+    sheet.getRange(row, cols.date).clearContent();
+    sheet.getRange(row, cols.checkIn).clearContent();
+    sheet.getRange(row, cols.academics).clearContent();
+    sheet.getRange(row, cols.engagement).clearContent();
+    sheet.getRange(row, cols.followUp).clearContent();
+    sheet.getRange(row, cols.type).clearContent();
+    sheet.getRange(row, cols.ready).setValue(false);
+  }
+
+  return {
+    studentNumber: studentNumber,
+    date: dateLabel,
+    note: rendered
+  };
+}
+
+function saveEccAttemptSummary_(sheet, row, cols, rendered) {
+  if (cols.attempt1) {
+    const first = sheet.getRange(row, cols.attempt1);
+    if (!first.getValue()) {
+      first.setValue(rendered).setWrap(true);
+      return;
+    }
+    if (String(first.getValue()) === rendered) return;
+  }
+
+  if (cols.attempt2) {
+    const second = sheet.getRange(row, cols.attempt2);
+    if (!second.getValue()) {
+      second.setValue(rendered).setWrap(true);
+      return;
+    }
+  }
+}
+
+function appendEccHistory_(existingText, entry) {
+  const oldText = String(existingText || '').replace(/\s+$/g, '');
+  return oldText ? oldText + '\n\n' + entry : entry;
+}
+
+function eccHistoryContains_(history, entry) {
+  return String(history || '').indexOf(entry) !== -1;
 }
 
 function sendEccHandoff_(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const encoded = Utilities.base64EncodeWebSafe(JSON.stringify({
-    v: 1,
-    studentNumber: payload.studentNumber,
-    date: payload.date,
-    note: payload.note
-  }), Utilities.Charset.UTF_8).replace(/=+$/g, '');
+  const encoded = Utilities.base64EncodeWebSafe(
+    JSON.stringify({
+      v: 1,
+      studentNumber: payload.studentNumber,
+      date: payload.date,
+      note: payload.note
+    }),
+    Utilities.Charset.UTF_8
+  ).replace(/=+$/g, '');
+
   SpreadsheetApp.flush();
   ss.toast(ECC_HANDOFF_PREFIX_ + encoded, 'ECC Tools', 10);
 }

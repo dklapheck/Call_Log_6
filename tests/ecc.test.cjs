@@ -159,3 +159,17 @@ test('a full attempt pair leaves history and recent notes intact', () => {
   assert.equal(env.data[1][8], history);
   assert.equal(env.data[1][4], 'Needs help with homework');
 });
+
+test('the old handoff menu name still opens PowerSchool once', () => {
+  const env = environment();
+  env.context.archiveAndOpenPowerSchoolECC();
+  assert.equal(env.toasts.filter(t => t.startsWith('ECC_HANDOFF_V1:')).length, 1);
+  assert.match(env.data[1][8], /Overall:/);
+});
+
+test('the old archive-only menu name never opens PowerSchool', () => {
+  const env = environment();
+  env.context.archiveCurrentECCNote();
+  assert.match(env.data[1][8], /Overall:/);
+  assert.equal(env.toasts.filter(t => t.startsWith('ECC_HANDOFF_V1:')).length, 0);
+});

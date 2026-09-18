@@ -1,13 +1,13 @@
 /**
  * ENGAGELI ATTENDANCE IMPORTER
- * Copies Engageli "Presence" durations into the Roster sheet.
+ * Copies Engageli "Presence" durations into the Onboarding sheet.
  * Students are matched by the leading student number in the email:
  *   11101615_k12@example.com -> 11101615
  */
 
 const ENGAGELI_CONFIG = {
   sheets: {
-    roster: 'Roster',
+    roster: 'Onboarding',
     data: 'Engageli Data',
     settings: 'Instructions and Settings'
   },
@@ -24,7 +24,7 @@ const ENGAGELI_CONFIG = {
 
   settings: {
     sectionTitle: 'Engageli Attendance Settings',
-    teacherCheckboxLabel: 'Import teacher row at bottom of Roster',
+    teacherCheckboxLabel: 'Import teacher row at bottom of Onboarding',
     defaultTeacherCheckboxValue: true,
     firstPreferredRow: 15
   },
@@ -99,9 +99,11 @@ function updateEngageliAttendance() {
       ENGAGELI_CONFIG.sheets.roster
     );
 
+    const sourceSs = getSourceSpreadsheet_();
+
     const dataSheet = engGetRequiredSheet_(
-      ss,
-      ENGAGELI_CONFIG.sheets.data
+      sourceSs,
+      APP_CONFIG.source.engageli
     );
 
     const result = engImportAttendance_(
@@ -760,7 +762,7 @@ function engBuildRosterMap_(
 
   if (lastRow < 2) {
     throw new Error(
-      'The Roster sheet does not contain any student rows.'
+      'The Onboarding sheet does not contain any student rows.'
     );
   }
 
@@ -877,7 +879,7 @@ function engEnsureRosterSessionColumns_(
 
     if (matches.length > 1) {
       throw new Error(
-        'The Roster contains more than one column labeled "' +
+        'The Onboarding contains more than one column labeled "' +
           sessionLabel +
           '".'
       );
@@ -947,7 +949,7 @@ function engEnsureRosterSessionColumns_(
 
 /**
  * Adds the optional teacher benchmark
- * row at the bottom of the Roster.
+ * row at the bottom of the Onboarding.
  */
 function engAddTeacherRow_(
   rosterSheet,
@@ -1286,7 +1288,7 @@ function engBuildSummary_(result) {
   ) {
     lines.push(
       result.teacherRowAdded
-        ? 'Teacher benchmark row: added at the bottom of the Roster'
+        ? 'Teacher benchmark row: added at the bottom of the Onboarding'
         : 'Teacher benchmark row: not added because no teacher record was found'
     );
   } else {

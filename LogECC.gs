@@ -276,3 +276,38 @@ function sendEccHandoff_(payload) {
     ss.toast('ECC handoff failed. See Automation Log.', 'ECC Handoff', 8);
   }
 }
+
+// Keep the original menu item and any assigned sheet button working.
+function archiveAndOpenPowerSchoolECC() {
+  return logCurrentEccRowAndOpenPowerSchool();
+}
+
+// The old archive-only menu item must not launch PowerSchool.
+function archiveCurrentECCNote() {
+  return withRosterLock_(function() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getActiveSheet();
+    if (sheet.getName() !== APP_CONFIG.sheets.ecc || sheet.getActiveCell().getRow() <= 1) {
+      ss.toast('Select a student row on the ECC tab first.', 'ECC Not Archived', 6);
+      return;
+    }
+
+    const row = sheet.getActiveCell().getRow();
+    let studentNumber = '';
+    try {
+      const cols = getEccBatchColumns_(sheet);
+      studentNumber = normalizeId_(sheet.getRange(row, cols.student).getValue());
+      const result = logEccRow_(sheet, row, cols);
+      if (cols.ready) sheet.getRange(row, cols.ready).setValue(false);
+      logAutomationEvent_('INFO', 'ECC Archive', result.studentNumber,
+        result.duplicate ? 'ECC entry was already archived.' : 'ECC entry archived.',
+        'Row ' + row);
+      ss.toast(result.duplicate ? 'ECC entry was already archived.' : 'ECC note archived.',
+        'ECC Tools', 5);
+    } catch (error) {
+      logAutomationEvent_('ERROR', 'ECC Archive', studentNumber,
+        'Could not archive the ECC note.', 'Row ' + row + '\n' + getErrorDetails_(error));
+      ss.toast('ECC archive failed. See Automation Log.', 'ECC Not Archived', 8);
+    }
+  });
+}

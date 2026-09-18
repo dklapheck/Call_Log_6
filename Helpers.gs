@@ -112,7 +112,7 @@ function saveFailedSccAttempt_(ss, rosterSheet, rosterRow, studentName, contactN
     const col = findHeaderColumn_(rosterSheet, attemptHeaders[i]);
     if (rosterSheet.getRange(rosterRow, col).getDisplayValue().trim() === contactNote) {
       ss.toast('This contact attempt is already saved for ' + studentName + '.', 'Duplicate Not Saved', 5);
-      return;
+      return { saved: true, duplicate: true };
     }
   }
 
@@ -126,7 +126,7 @@ function saveFailedSccAttempt_(ss, rosterSheet, rosterRow, studentName, contactN
   }
   if (target === null) {
     ss.toast('No empty Attempt 1–5 column is available for ' + studentName + '.', 'Attempt Not Saved', 8);
-    return;
+    return { saved: false };
   }
 
   rosterSheet.getRange(rosterRow, target).setValue(contactNote);
@@ -134,6 +134,7 @@ function saveFailedSccAttempt_(ss, rosterSheet, rosterRow, studentName, contactN
     .setValue(statuses[attempt]);
   SpreadsheetApp.flush();
   ss.toast('Attempt ' + (attempt + 1) + ' saved for ' + studentName + '.', 'Contact Attempt Saved', 4);
+  return { saved: true, duplicate: false };
 }
 
 function appendHistoryEntry_(existingText, entry) {

@@ -9,6 +9,7 @@ function onOpen() {
     .addItem('Log Ready ECC Rows', 'logReadyEccRows')
     .addItem('Log Current ECC Row & Open PowerSchool', 'logCurrentEccRowAndOpenPowerSchool')
     .addItem('Set Up / Repair ECC Batch Columns', 'setupEccBatchLayout')
+    .addItem('Open Automation Log', 'openAutomationLog')
     .addSeparator()
     .addItem('Update Engageli Attendance', 'updateEngageliAttendance')
     .addItem('Set Up / Repair Attendance Settings', 'setupEngageliAttendanceSettings')

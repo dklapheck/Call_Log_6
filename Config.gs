@@ -5,7 +5,6 @@ const APP_CONFIG = {
     scc: 'SCC',
     ecc: 'ECC',
     callEntry: 'Call Entry',
-    eccEntry: 'ECC Entry',
     wig: 'WIG',
     studentData: 'StudentData',
     overrides: 'LocalOverrides',

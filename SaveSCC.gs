@@ -1,6 +1,17 @@
 function saveSccToRoster() {
-  withRosterLock_(function() {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return withRosterLock_(function() {
+    saveSccEntry_(false);
+  });
+}
+
+function saveSccAndOpenPowerSchool() {
+  return withRosterLock_(function() {
+    saveSccEntry_(true);
+  });
+}
+
+function saveSccEntry_(openPowerSchool) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
     const callSheet = getRequiredSheet_(ss, SCC_CONFIG.sheets.callEntry);
     const rosterSheet = getRequiredSheet_(ss, SCC_CONFIG.sheets.roster);
 
@@ -33,7 +44,8 @@ function saveSccToRoster() {
     }
 
     if (unsuccessfulContact) {
-      saveFailedSccAttempt_(ss, rosterSheet, rosterRow, studentName, sccNote);
+      const result = saveFailedSccAttempt_(ss, rosterSheet, rosterRow, studentName, sccNote);
+      if (openPowerSchool && result.saved) sendSccHandoff_(studentId, sccNote);
       return;
     }
 
@@ -45,6 +57,7 @@ function saveSccToRoster() {
     const existingNote = rosterSheet.getRange(rosterRow, notesColumn).getDisplayValue().trim();
     if (existingNote === sccNote && rosterSheet.getRange(rosterRow, completionColumn).getDisplayValue() === SCC_CONFIG.roster.completedValue) {
       ss.toast('This SCC is already saved for ' + studentName + '.', 'Duplicate Not Saved', 5);
+      if (openPowerSchool) sendSccHandoff_(studentId, sccNote);
       return;
     }
 
@@ -54,5 +67,24 @@ function saveSccToRoster() {
     SpreadsheetApp.flush();
 
     ss.toast('SCC saved and marked Completed for ' + studentName + '.', 'SCC Saved', 4);
-  });
+    if (openPowerSchool) sendSccHandoff_(studentId, sccNote);
+}
+
+function sendSccHandoff_(studentId, note) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  try {
+    const encoded = Utilities.base64EncodeWebSafe(
+      JSON.stringify({ v: 1, studentNumber: normalizeId_(studentId), note: note }),
+      Utilities.Charset.UTF_8
+    ).replace(/=+$/g, '');
+    const marker = 'SCC_HANDOFF_V1:' + encoded;
+    logAutomationEvent_('INFO', 'SCC Handoff', studentId,
+      'PowerSchool handoff created.', 'Handoff marker:\n' + marker);
+    SpreadsheetApp.flush();
+    ss.toast(marker, 'SCC Tools', 10);
+  } catch (error) {
+    logAutomationEvent_('ERROR', 'SCC Handoff', studentId,
+      'Could not create the PowerSchool handoff.', getErrorDetails_(error));
+    ss.toast('SCC handoff failed. See Automation Log.', 'SCC Tools', 8);
+  }
 }

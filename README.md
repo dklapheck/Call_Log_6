@@ -2,6 +2,10 @@
 
 Apps Script for the roster workbook. The `final-6roster-architecture` branch contains the proposed 6Roster tools.
 
+## Student Connection Calls
+
+On **Call Entry**, use **Teacher Tools > Save SCC Call Entry** to save only to the SCC tab. Use **Save Student Connection Call & Open PowerSchool** to save the same note to SCC and prepare a PowerSchool log for the selected student. The call is usually with a parent at the start of the semester. Successful calls save to SCC Notes; unsuccessful calls save to the next available Attempt column. The PowerSchool helper never clicks Submit: review the log, confirm its Type and Subtype, and submit it yourself. The first SCC handoff asks you to choose the correct PowerSchool Type and Subtype and remembers them in this browser. You can clear those selections in the extension options. Refresh the Sheet after updating Apps Script and the extension.
+
 ## ECC notes in the final roster
 
 Use the ECC tab directly. The new note columns are **Overall (E), Classes (F), Grades (G), and Socially (H)**. The script finds them by normalized header text, including the line breaks currently in the headers. **ECC Date (D)** and at least one note field are required to log an entry. The prior history in **Old ECC Dates and Notes (I)** stays visible while you write.

@@ -4,7 +4,13 @@ Apps Script for the roster workbook. The `final-6roster-architecture` branch con
 
 ## Student Connection Calls
 
-On **Call Entry**, use **Teacher Tools > Save SCC Call Entry** to save only to the SCC tab. Use **Save Student Connection Call & Open PowerSchool** to save the same note to SCC and prepare a PowerSchool log for the selected student. The call is usually with a parent at the start of the semester. Successful calls save to SCC Notes; unsuccessful calls save to the next available Attempt column. The PowerSchool helper never clicks Submit: review the log, confirm its Type and Subtype, and submit it yourself. The first SCC handoff asks you to choose the correct PowerSchool Type and Subtype and remembers them in this browser. You can clear those selections in the extension options. Refresh the Sheet after updating Apps Script and the extension.
+On **Call Entry**, use **Teacher Tools > Save SCC Call Entry** to save only to the SCC tab. Use **Save Student Connection Call & Open PowerSchool** to save the same note to SCC and prepare a PowerSchool log for the selected student. The call is usually with a parent at the start of the semester. Successful calls save to SCC Notes; unsuccessful calls save to the next available Attempt column. The PowerSchool helper never clicks Submit: review the log and submit it yourself. Refresh the Sheet after updating Apps Script and the extension.
+
+## PowerSchool selections in the Settings tab
+
+On **Instructions and Settings**, use the **PowerSchool contact log settings** table in A34:G38. The four rows are **SCC Success**, **SCC Attempt**, **ECC Conversation**, and **ECC Attempt**. Enter the exact PowerSchool option values in **Log Type value** (B) and **Subtype value** (D); C and E are human-readable labels. An optional **Additional dropdowns (JSON)** cell (F) accepts an array such as `[{"name":"result","value":"no_answer"}]`. Leave B and D both blank to select Type/Subtype manually on that PowerSchool log. The known ECC values are prefilled; SCC values need to be captured from your school's form.
+
+Each handoff reads the current Settings cells and sends the matching row's values to the extension. Editing these cells changes the next handoff without reinstalling the extension. The temporary extension capture tool can copy Type/Subtype values for pasting into columns B:E. Do not put student numbers or notes in this settings table. The ECC date controls will be handled in extension code once their actual PowerSchool controls are captured.
 
 ## ECC notes in the final roster
 

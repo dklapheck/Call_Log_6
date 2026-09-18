@@ -225,6 +225,7 @@ function logEccRow_(sheet, row, cols) {
     studentNumber: studentNumber,
     date: dateLabel,
     note: rendered,
+    outcome: type,
     duplicate: duplicate
   };
 }
@@ -254,12 +255,16 @@ function eccHistoryContains_(history, entry) {
 function sendEccHandoff_(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   try {
+    const workflow = 'ECC ' + payload.outcome;
+    const settings = getPowerSchoolContactSettings_(ss, workflow);
     const encoded = Utilities.base64EncodeWebSafe(
       JSON.stringify({
         v: 1,
         studentNumber: payload.studentNumber,
         date: payload.date,
-        note: payload.note
+        note: payload.note,
+        outcome: workflow,
+        settings: settings
       }),
       Utilities.Charset.UTF_8
     ).replace(/=+$/g, '');

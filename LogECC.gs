@@ -83,28 +83,45 @@ function logReadyEccRows() {
     const lastRow = sheet.getLastRow();
 
     let logged = 0;
-    const problems = [];
+    let failed = 0;
 
     for (let row = 2; row <= lastRow; row++) {
       if (sheet.getRange(row, cols.ready).getValue() !== true) continue;
 
+      const studentNumber = normalizeId_(sheet.getRange(row, cols.student).getValue());
+
       try {
         const result = logEccRow_(sheet, row, cols, true);
-        if (result) logged++;
+        if (result) {
+          logged++;
+          logAutomationEvent_(
+            'INFO',
+            'ECC Batch Log',
+            result.studentNumber,
+            'ECC row logged successfully.',
+            'Row ' + row
+          );
+        }
       } catch (error) {
-        problems.push('Row ' + row + ': ' + error.message);
+        failed++;
+        logAutomationEvent_(
+          'ERROR',
+          'ECC Batch Log',
+          studentNumber,
+          'ECC row was not logged.',
+          'Row ' + row + '\n' + getErrorDetails_(error)
+        );
       }
     }
 
     SpreadsheetApp.flush();
 
-    let message = logged + ' ECC row' + (logged === 1 ? '' : 's') + ' logged.';
-    if (problems.length) {
-      message += '\n\nNot logged:\n' + problems.slice(0, 8).join('\n');
-      if (problems.length > 8) message += '\n…and ' + (problems.length - 8) + ' more.';
-    }
-
-    SpreadsheetApp.getUi().alert('ECC Batch Update', message, SpreadsheetApp.getUi().ButtonSet.OK);
+    const message = logged + ' logged' + (failed ? ', ' + failed + ' need review' : '') + '.';
+    ss.toast(
+      message + (failed ? ' See Automation Log.' : ''),
+      'ECC Batch Update',
+      7
+    );
   });
 }
 
@@ -114,19 +131,40 @@ function logCurrentEccRowAndOpenPowerSchool() {
     const sheet = ss.getActiveSheet();
 
     if (sheet.getName() !== APP_CONFIG.sheets.ecc) {
-      SpreadsheetApp.getUi().alert('Select the student row on the ECC tab first.');
+      const message = 'Select the student row on the ECC tab first.';
+      logAutomationEvent_('ERROR', 'ECC Handoff', '', message, '');
+      ss.toast(message + ' See Automation Log.', 'ECC Handoff', 7);
       return;
     }
 
     const row = sheet.getActiveCell().getRow();
     if (row <= 1) {
-      SpreadsheetApp.getUi().alert('Select a student row, not the header row.');
+      const message = 'Select a student row, not the header row.';
+      logAutomationEvent_('ERROR', 'ECC Handoff', '', message, 'Row ' + row);
+      ss.toast(message + ' See Automation Log.', 'ECC Handoff', 7);
       return;
     }
 
     const cols = getEccBatchColumns_(sheet);
-    const result = logEccRow_(sheet, row, cols, true);
-    if (result) sendEccHandoff_(result);
+    const studentNumber = normalizeId_(sheet.getRange(row, cols.student).getValue());
+
+    try {
+      const result = logEccRow_(sheet, row, cols, true);
+      if (result) sendEccHandoff_(result);
+    } catch (error) {
+      logAutomationEvent_(
+        'ERROR',
+        'ECC Handoff',
+        studentNumber,
+        'Could not prepare the PowerSchool handoff.',
+        'Row ' + row + '\n' + getErrorDetails_(error)
+      );
+      ss.toast(
+        'ECC handoff failed. See Automation Log.',
+        'ECC Handoff',
+        8
+      );
+    }
   });
 }
 
@@ -253,16 +291,42 @@ function eccHistoryContains_(history, entry) {
 
 function sendEccHandoff_(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const encoded = Utilities.base64EncodeWebSafe(
-    JSON.stringify({
-      v: 1,
-      studentNumber: payload.studentNumber,
-      date: payload.date,
-      note: payload.note
-    }),
-    Utilities.Charset.UTF_8
-  ).replace(/=+$/g, '');
 
-  SpreadsheetApp.flush();
-  ss.toast(ECC_HANDOFF_PREFIX_ + encoded, 'ECC Tools', 10);
+  try {
+    const encoded = Utilities.base64EncodeWebSafe(
+      JSON.stringify({
+        v: 1,
+        studentNumber: payload.studentNumber,
+        date: payload.date,
+        note: payload.note
+      }),
+      Utilities.Charset.UTF_8
+    ).replace(/=+$/g, '');
+
+    const marker = ECC_HANDOFF_PREFIX_ + encoded;
+
+    logAutomationEvent_(
+      'INFO',
+      'ECC Handoff',
+      payload.studentNumber,
+      'PowerSchool handoff created.',
+      'Date: ' + payload.date + '\nHandoff marker:\n' + marker
+    );
+
+    SpreadsheetApp.flush();
+    ss.toast(marker, 'ECC Tools', 10);
+  } catch (error) {
+    logAutomationEvent_(
+      'ERROR',
+      'ECC Handoff',
+      payload && payload.studentNumber ? payload.studentNumber : '',
+      'Could not create the PowerSchool handoff.',
+      getErrorDetails_(error)
+    );
+    ss.toast(
+      'ECC handoff failed. See Automation Log.',
+      'ECC Handoff',
+      8
+    );
+  }
 }

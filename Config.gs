@@ -10,7 +10,8 @@ const APP_CONFIG = {
     overrides: 'LocalOverrides',
     contacts: 'Contacts',
     star: 'STAR Data',
-    settings: 'Instructions and Settings'
+    settings: 'Instructions and Settings',
+    automationLog: 'Automation Log'
   },
 
   source: {

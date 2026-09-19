@@ -89,6 +89,9 @@ function environment(extraRows = []) {
     getRequiredSheet_: (_ss, name) => ss.getSheetByName(name),
     ensureSheetColumns_: (_sheet, count) => { maxColumns = Math.max(maxColumns, count); },
     normalizeId_: value => String(value ?? '').trim(),
+    getPowerSchoolContactSettings_: (_ss, workflow) => ({
+      workflow, typeValue: '1187', subtypeValue: 'GE:ECC', extraDropdowns: []
+    }),
     logAutomationEvent_: (...args) => events.push(args),
     getErrorDetails_: error => String(error?.message || error)
   });

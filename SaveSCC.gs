@@ -45,7 +45,7 @@ function saveSccEntry_(openPowerSchool) {
 
     if (unsuccessfulContact) {
       const result = saveFailedSccAttempt_(ss, rosterSheet, rosterRow, studentName, sccNote);
-      if (openPowerSchool && result.saved) sendSccHandoff_(studentId, sccNote);
+      if (openPowerSchool && result.saved) sendSccHandoff_(studentId, sccNote, 'SCC Attempt');
       return;
     }
 
@@ -57,7 +57,7 @@ function saveSccEntry_(openPowerSchool) {
     const existingNote = rosterSheet.getRange(rosterRow, notesColumn).getDisplayValue().trim();
     if (existingNote === sccNote && rosterSheet.getRange(rosterRow, completionColumn).getDisplayValue() === SCC_CONFIG.roster.completedValue) {
       ss.toast('This SCC is already saved for ' + studentName + '.', 'Duplicate Not Saved', 5);
-      if (openPowerSchool) sendSccHandoff_(studentId, sccNote);
+      if (openPowerSchool) sendSccHandoff_(studentId, sccNote, 'SCC Success');
       return;
     }
 
@@ -67,14 +67,16 @@ function saveSccEntry_(openPowerSchool) {
     SpreadsheetApp.flush();
 
     ss.toast('SCC saved and marked Completed for ' + studentName + '.', 'SCC Saved', 4);
-    if (openPowerSchool) sendSccHandoff_(studentId, sccNote);
+    if (openPowerSchool) sendSccHandoff_(studentId, sccNote, 'SCC Success');
 }
 
-function sendSccHandoff_(studentId, note) {
+function sendSccHandoff_(studentId, note, workflow) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   try {
+    const settings = getPowerSchoolContactSettings_(ss, workflow);
     const encoded = Utilities.base64EncodeWebSafe(
-      JSON.stringify({ v: 1, studentNumber: normalizeId_(studentId), note: note }),
+      JSON.stringify({ v: 1, studentNumber: normalizeId_(studentId), note: note,
+        outcome: workflow, settings: settings }),
       Utilities.Charset.UTF_8
     ).replace(/=+$/g, '');
     const marker = 'SCC_HANDOFF_V1:' + encoded;

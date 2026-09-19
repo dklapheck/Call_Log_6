@@ -60,6 +60,11 @@ function fixture({ yes = true, no = false, attemptSaved = true, duplicate = fals
     findHeaderColumn_: (_sheet, name) => ({ 'SCC Notes': 1, 'SCC To Do': 2, 'SCC Completion': 3 })[name],
     saveFailedSccAttempt_: () => ({ saved: attemptSaved }),
     normalizeId_: id => String(id),
+    getPowerSchoolContactSettings_: (_ss, workflow) => ({
+      workflow, typeValue: workflow === 'SCC Success' ? 'SUCCESS_TYPE' : 'ATTEMPT_TYPE',
+      subtypeValue: workflow === 'SCC Success' ? 'SUCCESS_SUBTYPE' : 'ATTEMPT_SUBTYPE',
+      extraDropdowns: []
+    }),
     logAutomationEvent_: (...args) => events.push(args),
     getErrorDetails_: e => String(e)
   });
@@ -80,6 +85,8 @@ test('successful call saves the note, then creates a handoff of that same note',
   assert.equal(env.values.completion, 'Completed');
   assert.equal(payload(env.events).note, env.values.note);
   assert.equal(payload(env.events).studentNumber, '12345678');
+  assert.equal(payload(env.events).outcome, 'SCC Success');
+  assert.equal(payload(env.events).settings.subtypeValue, 'SUCCESS_SUBTYPE');
 });
 
 test('previously saved call can retry its handoff', () => {
@@ -105,4 +112,6 @@ test('invalid contact or full attempt does not create a handoff', () => {
   const attempt = fixture({ yes: false, no: true });
   attempt.context.saveSccAndOpenPowerSchool();
   assert.equal(payload(attempt.events).note, attempt.values.note);
+  assert.equal(payload(attempt.events).outcome, 'SCC Attempt');
+  assert.equal(payload(attempt.events).settings.typeValue, 'ATTEMPT_TYPE');
 });

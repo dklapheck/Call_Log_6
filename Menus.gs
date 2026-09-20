@@ -4,7 +4,7 @@ function onOpen() {
     .addItem('Refresh Student Data', 'refreshStudentData')
     .addSeparator()
     .addItem('Save SCC Call Entry', 'saveSccToRoster')
-    .addItem('Log SCC in PowerSchool', 'logSccInPowerSchool')
+    .addItem('Log Selected SCC/Attempt in PowerSchool', 'logSccInPowerSchool')
     .addItem('Reset SCC Call Entry', 'resetCallEntry')
     .addSeparator()
     .addItem('Log Ready ECC Rows', 'logReadyEccRows')

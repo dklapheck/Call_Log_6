@@ -1,7 +1,7 @@
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Teacher Tools')
-    .addItem('Refresh Student Data', 'refreshStudentData')
+    .addItem('Refresh Student Data', 'refreshStudentDataAndCounselors')
     .addSeparator()
     .addItem('Save SCC Call Entry', 'saveSccToRoster')
     .addItem('Log Selected SCC/Attempt in PowerSchool', 'logSccInPowerSchool')

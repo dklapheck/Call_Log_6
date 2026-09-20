@@ -7,7 +7,8 @@ Apps Script for the roster workbook. The `final-6roster-architecture` branch con
 On **Call Entry**, saving and PowerSchool logging are separate actions:
 
 - Use **Teacher Tools > Save SCC Call Entry** to save the call to the SCC tab. Successful calls save to SCC Notes; unsuccessful calls save to the next available Attempt column.
-- Use **Teacher Tools > Log SCC in PowerSchool** to prepare a PowerSchool log from the current Call Entry without changing the SCC tab. The older function name `saveSccAndOpenPowerSchool` remains as a compatibility alias, but it also logs only.
+- From **Call Entry**, use **Teacher Tools > Log Selected SCC/Attempt in PowerSchool** to prepare a PowerSchool log from the current form without changing the SCC tab.
+- From the **SCC** tab, select one populated **SCC Notes** or **Attempt 1–5** cell and use the same menu action. An SCC Notes selection uses the **SCC Success** PowerSchool settings; an Attempt 1–5 selection uses the **SCC Attempt** settings and the text from that selected cell. The older function name `saveSccAndOpenPowerSchool` remains as a compatibility alias, but it also logs only.
 
 The call is usually with a parent at the start of the semester. The PowerSchool helper never clicks Submit: review the log and submit it yourself.
 

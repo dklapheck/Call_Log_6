@@ -77,21 +77,21 @@ function payload(events) {
   return marker ? JSON.parse(Buffer.from(marker, 'base64url').toString()) : null;
 }
 
-test('successful call saves the note, then creates a handoff of that same note', () => {
+test('logging a successful call creates a handoff without saving the roster', () => {
   const env = fixture();
-  env.context.saveSccAndOpenPowerSchool();
-  assert.equal(env.values.rosterNote, env.values.note);
-  assert.equal(env.values.rosterToDo, env.values.toDo);
-  assert.equal(env.values.completion, 'Completed');
+  env.context.logSccInPowerSchool();
+  assert.equal(env.values.rosterNote, '');
+  assert.equal(env.values.rosterToDo, '');
+  assert.equal(env.values.completion, '');
   assert.equal(payload(env.events).note, env.values.note);
   assert.equal(payload(env.events).studentNumber, '12345678');
   assert.equal(payload(env.events).outcome, 'SCC Success');
   assert.equal(payload(env.events).settings.subtypeValue, 'SUCCESS_SUBTYPE');
 });
 
-test('previously saved call can retry its handoff', () => {
+test('previously saved call can be logged again without changing the roster', () => {
   const env = fixture({ duplicate: true });
-  env.context.saveSccAndOpenPowerSchool();
+  env.context.logSccInPowerSchool();
   assert.equal(payload(env.events).note, env.values.note);
 });
 
@@ -102,16 +102,23 @@ test('existing save-only action never opens PowerSchool', () => {
   assert.equal(payload(env.events), null);
 });
 
-test('invalid contact or full attempt does not create a handoff', () => {
+test('invalid contact does not create a handoff, but logging does not depend on Attempt columns', () => {
   const invalid = fixture({ yes: false, no: false });
-  invalid.context.saveSccAndOpenPowerSchool();
+  invalid.context.logSccInPowerSchool();
   assert.equal(payload(invalid.events), null);
   const full = fixture({ yes: false, no: true, attemptSaved: false });
-  full.context.saveSccAndOpenPowerSchool();
-  assert.equal(payload(full.events), null);
+  full.context.logSccInPowerSchool();
+  assert.equal(payload(full.events).outcome, 'SCC Attempt');
   const attempt = fixture({ yes: false, no: true });
-  attempt.context.saveSccAndOpenPowerSchool();
+  attempt.context.logSccInPowerSchool();
   assert.equal(payload(attempt.events).note, attempt.values.note);
   assert.equal(payload(attempt.events).outcome, 'SCC Attempt');
   assert.equal(payload(attempt.events).settings.typeValue, 'ATTEMPT_TYPE');
+});
+
+test('legacy combined-action name now logs only', () => {
+  const env = fixture();
+  env.context.saveSccAndOpenPowerSchool();
+  assert.equal(env.values.rosterNote, '');
+  assert.equal(payload(env.events).outcome, 'SCC Success');
 });

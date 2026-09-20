@@ -4,7 +4,14 @@ Apps Script for the roster workbook. The `final-6roster-architecture` branch con
 
 ## Student Connection Calls
 
-On **Call Entry**, use **Teacher Tools > Save SCC Call Entry** to save only to the SCC tab. Use **Save Student Connection Call & Open PowerSchool** to save the same note to SCC and prepare a PowerSchool log for the selected student. The call is usually with a parent at the start of the semester. Successful calls save to SCC Notes; unsuccessful calls save to the next available Attempt column. The PowerSchool helper never clicks Submit: review the log and submit it yourself. Refresh the Sheet after updating Apps Script and the extension.
+On **Call Entry**, saving and PowerSchool logging are separate actions:
+
+- Use **Teacher Tools > Save SCC Call Entry** to save the call to the SCC tab. Successful calls save to SCC Notes; unsuccessful calls save to the next available Attempt column.
+- Use **Teacher Tools > Log SCC in PowerSchool** to prepare a PowerSchool log from the current Call Entry without changing the SCC tab. The older function name `saveSccAndOpenPowerSchool` remains as a compatibility alias, but it also logs only.
+
+The call is usually with a parent at the start of the semester. The PowerSchool helper never clicks Submit: review the log and submit it yourself.
+
+After selecting a student on **Call Entry**, select cell **B15**, labeled **Demographics Correct?**, to open that student's PowerSchool Demographics screen. This is a Google Sheets selection action, so choose another cell before selecting B15 again if you want to reopen it. Refresh the Sheet after updating Apps Script and reload the unpacked extension after updating its files.
 
 ## PowerSchool selections in the Settings tab
 

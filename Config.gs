@@ -40,6 +40,7 @@ const SCC_CONFIG = {
     studentId: 'O2',
     note: 'D1',
     toDo: 'I1',
+    demographicsAction: 'B15',
     formRange: 'A7:I50',
 
     resetRanges: [

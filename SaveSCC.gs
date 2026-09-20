@@ -1,73 +1,91 @@
 function saveSccToRoster() {
   return withRosterLock_(function() {
-    saveSccEntry_(false);
+    saveSccEntry_();
   });
 }
 
+function logSccInPowerSchool() {
+  const entry = getSccCallEntryData_('SCC Not Logged');
+  if (!entry) return;
+
+  sendSccHandoff_(entry.studentId, entry.sccNote, entry.workflow);
+}
+
+// Backward-compatible name for any existing drawing/button assignment.
+// This action now logs only; it no longer saves to the SCC roster.
 function saveSccAndOpenPowerSchool() {
-  return withRosterLock_(function() {
-    saveSccEntry_(true);
-  });
+  return logSccInPowerSchool();
 }
 
-function saveSccEntry_(openPowerSchool) {
+function getSccCallEntryData_(failureTitle) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const callSheet = getRequiredSheet_(ss, SCC_CONFIG.sheets.callEntry);
-    const rosterSheet = getRequiredSheet_(ss, SCC_CONFIG.sheets.roster);
+  const callSheet = getRequiredSheet_(ss, SCC_CONFIG.sheets.callEntry);
+  const studentId = callSheet.getRange(SCC_CONFIG.callEntry.studentId).getValue();
 
-    const studentId = callSheet.getRange(SCC_CONFIG.callEntry.studentId).getValue();
-    if (!studentId) {
-      ss.toast('Select a student before saving.', 'SCC Not Saved', 4);
-      return;
-    }
+  if (!studentId) {
+    ss.toast('Select a student first.', failureTitle, 4);
+    return null;
+  }
 
-    const rosterRow = findStudentRosterRow_(rosterSheet, studentId);
-    if (!rosterRow) {
-      ss.toast('Student ID ' + studentId + ' was not found on the SCC sheet.', 'SCC Not Saved', 5);
-      return;
-    }
+  const contactRow = findQuestionRow_(callSheet, 'Successful contact?');
+  const successfulContact = callSheet.getRange(contactRow, 4).getValue() === true;
+  const unsuccessfulContact = callSheet.getRange(contactRow, 6).getValue() === true;
 
-    const studentName = getStudentName_(rosterSheet, rosterRow);
-    const contactRow = findQuestionRow_(callSheet, 'Successful contact?');
-    const successfulContact = callSheet.getRange(contactRow, 4).getValue() === true;
-    const unsuccessfulContact = callSheet.getRange(contactRow, 6).getValue() === true;
+  if (successfulContact === unsuccessfulContact) {
+    ss.toast('Choose either Yes or No for Successful contact?.', failureTitle, 5);
+    return null;
+  }
 
-    if (successfulContact === unsuccessfulContact) {
-      ss.toast('Choose either Yes or No for Successful contact?.', 'SCC Not Saved', 5);
-      return;
-    }
+  const sccNote = callSheet.getRange(SCC_CONFIG.callEntry.note).getDisplayValue().trim();
+  if (!sccNote) {
+    ss.toast('There is no contact note for the selected student.', failureTitle, 4);
+    return null;
+  }
 
-    const sccNote = callSheet.getRange(SCC_CONFIG.callEntry.note).getDisplayValue().trim();
-    if (!sccNote) {
-      ss.toast('There is no contact note to save for ' + studentName + '.', 'SCC Not Saved', 4);
-      return;
-    }
+  return {
+    ss: ss,
+    studentId: studentId,
+    sccNote: sccNote,
+    sccToDo: callSheet.getRange(SCC_CONFIG.callEntry.toDo).getDisplayValue().trim(),
+    successfulContact: successfulContact,
+    workflow: successfulContact ? 'SCC Success' : 'SCC Attempt'
+  };
+}
 
-    if (unsuccessfulContact) {
-      const result = saveFailedSccAttempt_(ss, rosterSheet, rosterRow, studentName, sccNote);
-      if (openPowerSchool && result.saved) sendSccHandoff_(studentId, sccNote, 'SCC Attempt');
-      return;
-    }
+function saveSccEntry_() {
+  const entry = getSccCallEntryData_('SCC Not Saved');
+  if (!entry) return;
 
-    const sccToDo = callSheet.getRange(SCC_CONFIG.callEntry.toDo).getDisplayValue().trim();
-    const notesColumn = findHeaderColumn_(rosterSheet, SCC_CONFIG.roster.notesHeader);
-    const toDoColumn = findHeaderColumn_(rosterSheet, SCC_CONFIG.roster.toDoHeader);
-    const completionColumn = findHeaderColumn_(rosterSheet, SCC_CONFIG.roster.completionHeader);
+  const rosterSheet = getRequiredSheet_(entry.ss, SCC_CONFIG.sheets.roster);
+  const rosterRow = findStudentRosterRow_(rosterSheet, entry.studentId);
+  if (!rosterRow) {
+    entry.ss.toast('Student ID ' + entry.studentId + ' was not found on the SCC sheet.', 'SCC Not Saved', 5);
+    return;
+  }
 
-    const existingNote = rosterSheet.getRange(rosterRow, notesColumn).getDisplayValue().trim();
-    if (existingNote === sccNote && rosterSheet.getRange(rosterRow, completionColumn).getDisplayValue() === SCC_CONFIG.roster.completedValue) {
-      ss.toast('This SCC is already saved for ' + studentName + '.', 'Duplicate Not Saved', 5);
-      if (openPowerSchool) sendSccHandoff_(studentId, sccNote, 'SCC Success');
-      return;
-    }
+  const studentName = getStudentName_(rosterSheet, rosterRow);
+  if (!entry.successfulContact) {
+    saveFailedSccAttempt_(entry.ss, rosterSheet, rosterRow, studentName, entry.sccNote);
+    return;
+  }
 
-    rosterSheet.getRange(rosterRow, notesColumn).setValue(sccNote);
-    rosterSheet.getRange(rosterRow, toDoColumn).setValue(sccToDo);
-    rosterSheet.getRange(rosterRow, completionColumn).setValue(SCC_CONFIG.roster.completedValue);
-    SpreadsheetApp.flush();
+  const notesColumn = findHeaderColumn_(rosterSheet, SCC_CONFIG.roster.notesHeader);
+  const toDoColumn = findHeaderColumn_(rosterSheet, SCC_CONFIG.roster.toDoHeader);
+  const completionColumn = findHeaderColumn_(rosterSheet, SCC_CONFIG.roster.completionHeader);
 
-    ss.toast('SCC saved and marked Completed for ' + studentName + '.', 'SCC Saved', 4);
-    if (openPowerSchool) sendSccHandoff_(studentId, sccNote, 'SCC Success');
+  const existingNote = rosterSheet.getRange(rosterRow, notesColumn).getDisplayValue().trim();
+  if (existingNote === entry.sccNote &&
+      rosterSheet.getRange(rosterRow, completionColumn).getDisplayValue() === SCC_CONFIG.roster.completedValue) {
+    entry.ss.toast('This SCC is already saved for ' + studentName + '.', 'Duplicate Not Saved', 5);
+    return;
+  }
+
+  rosterSheet.getRange(rosterRow, notesColumn).setValue(entry.sccNote);
+  rosterSheet.getRange(rosterRow, toDoColumn).setValue(entry.sccToDo);
+  rosterSheet.getRange(rosterRow, completionColumn).setValue(SCC_CONFIG.roster.completedValue);
+  SpreadsheetApp.flush();
+
+  entry.ss.toast('SCC saved and marked Completed for ' + studentName + '.', 'SCC Saved', 4);
 }
 
 function sendSccHandoff_(studentId, note, workflow) {

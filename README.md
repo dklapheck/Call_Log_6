@@ -14,6 +14,8 @@ The call is usually with a parent at the start of the semester. The PowerSchool 
 
 After selecting a student on **Call Entry**, select cell **B15**, labeled **Demographics Correct?**, to open that student's PowerSchool Demographics screen. This is a Google Sheets selection action, so choose another cell before selecting B15 again if you want to reopen it. Refresh the Sheet after updating Apps Script and reload the unpacked extension after updating its files.
 
+**Teacher Tools > Refresh Student Data** also refreshes counselor information. Counselor names come from the source workbook's **Upstream** `COUNSELOR` field and are saved to **SCC column AA**. Counselor emails are reused from the existing **SCC Counselor/Counselor Email** directory; the script leaves an unknown email blank rather than guessing it. **Call Entry C40** displays the selected student's counselor and email automatically and is preserved when the Call Entry form is reset.
+
 ## PowerSchool selections in the Settings tab
 
 On **Instructions and Settings**, use the **PowerSchool contact log settings** table in A34:G38. The four rows are **SCC Success**, **SCC Attempt**, **ECC Conversation**, and **ECC Attempt**. Enter the exact PowerSchool option values in **Log Type value** (B) and **Subtype value** (D); C and E are human-readable labels. An optional **Additional dropdowns (JSON)** cell (F) accepts an array such as `[{"name":"result","value":"no_answer"}]`. Leave B and D both blank to select Type/Subtype manually on that PowerSchool log. The known ECC values are prefilled; SCC values need to be captured from your school's form.

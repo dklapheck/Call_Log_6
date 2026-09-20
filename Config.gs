@@ -41,6 +41,7 @@ const SCC_CONFIG = {
     note: 'D1',
     toDo: 'I1',
     demographicsAction: 'B15',
+    counselor: 'C40',
     formRange: 'A7:I50',
 
     resetRanges: [
@@ -53,7 +54,6 @@ const SCC_CONFIG = {
       'C36',
       'C37',
       'C39',
-      'C40',
       'H42',
       'C47:H47'
     ]
@@ -68,6 +68,13 @@ const SCC_CONFIG = {
     notesHeader: 'SCC Notes',
     attemptHeaders: ['Attempt 1', 'Attempt 2', 'Attempt 3', 'Attempt 4', 'Attempt 5'],
     toDoHeader: 'SCC To Do',
+    counselorHeader: 'Counselor',
+    counselorEmailHeader: 'Counselor Email',
     completedValue: 'Completed'
+  },
+
+  upstream: {
+    studentIdHeader: 'STUDENT_NUMBER',
+    counselorHeader: 'COUNSELOR'
   }
 };

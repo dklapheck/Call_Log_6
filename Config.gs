@@ -66,6 +66,7 @@ const SCC_CONFIG = {
     firstNameHeader: 'FIRST NAME',
     completionHeader: 'SCC Completion',
     notesHeader: 'SCC Notes',
+    attemptHeaders: ['Attempt 1', 'Attempt 2', 'Attempt 3', 'Attempt 4', 'Attempt 5'],
     toDoHeader: 'SCC To Do',
     completedValue: 'Completed'
   }

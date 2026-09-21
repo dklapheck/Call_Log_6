@@ -8,7 +8,7 @@ On **Call Entry**, saving and PowerSchool logging are separate actions:
 
 - Use **Teacher Tools > Save SCC Call Entry** to save the call to the SCC tab. Successful calls save to SCC Notes; unsuccessful calls save to the next available Attempt column.
 - From **Call Entry**, use **Teacher Tools > Log Selected SCC/Attempt in PowerSchool** to prepare a PowerSchool log from the current form without changing the SCC tab.
-- From the **SCC** tab, select one populated **SCC Notes** or **Attempt 1–5** cell and use the same menu action. An SCC Notes selection uses the **SCC Success** PowerSchool settings; an Attempt 1–5 selection uses the **SCC Attempt** settings and the text from that selected cell. The older function name `saveSccAndOpenPowerSchool` remains as a compatibility alias, but it also logs only.
+- From the **SCC** tab, select one populated **SCC Notes** or **Attempt 1–5** cell and use the same menu action. An SCC Notes selection uses the **SCC Success** PowerSchool settings; an Attempt 1–5 selection uses the **SCC Attempt** settings and its matching PowerSchool Attempt tag. From Call Entry, the script reuses the attempt number of an identical saved note or uses the first open Attempt column without saving it. The older function name `saveSccAndOpenPowerSchool` remains as a compatibility alias, but it also logs only.
 
 The call is usually with a parent at the start of the semester. The PowerSchool helper never clicks Submit: review the log and submit it yourself.
 
@@ -18,9 +18,9 @@ After selecting a student on **Call Entry**, select cell **B15**, labeled **Demo
 
 ## PowerSchool selections in the Settings tab
 
-On **Instructions and Settings**, use the **PowerSchool contact log settings** table in A34:I38. The four rows are **SCC Success**, **SCC Attempt**, **ECC Conversation**, and **ECC Attempt**. Enter the exact PowerSchool option values in **Log Type value** (B) and **Subtype value** (D); C and E are human-readable labels. Column H stores the PowerSchool log-date control and column I stores the exact visible tag label. An optional **Additional dropdowns (JSON)** cell (F) accepts an array such as `[{"name":"result","value":"no_answer"}]`. Leave B and D both blank to select Type/Subtype manually on that PowerSchool log.
+On **Instructions and Settings**, use the **PowerSchool contact log settings** table in A34:K38. The four rows are **SCC Success**, **SCC Attempt**, **ECC Conversation**, and **ECC Attempt**. Enter the exact PowerSchool option values in **Log Type value** (B) and **Subtype value** (D); C and E are human-readable labels. Columns H:J store the Date & Time, Incident Date, and Action Date controls. Column K stores the Attempt 1–6 tag map as JSON. An optional **Additional dropdowns (JSON)** cell (F) accepts an array such as `[{"name":"result","value":"no_answer"}]`. Leave B and D both blank to select Type/Subtype manually on that PowerSchool log.
 
-Each handoff reads the current Settings cells and sends Type, Subtype, Date field, Tag label, and any additional dropdowns to the extension. Editing these cells changes the next handoff without reinstalling Apps Script. SCC dates are read from the call note; ECC uses the row's ECC Date. Do not put student numbers or notes in this settings table.
+Each handoff reads the current Settings cells and sends Type, Subtype, all three date fields, the applicable Attempt tag, and any additional dropdowns to the extension. Editing these cells changes the next handoff without reinstalling Apps Script. SCC dates are read from the call note; ECC uses the row's ECC Date. Do not put student numbers or notes in this settings table.
 
 ## ECC notes in the final roster
 

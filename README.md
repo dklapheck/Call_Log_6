@@ -26,11 +26,11 @@ Each handoff reads the current Settings cells and sends the matching row's value
 
 Use the ECC tab directly. The new note columns are **Overall (E), Classes (F), Grades (G), and Socially (H)**. The script finds them by normalized header text, including the line breaks currently in the headers. **ECC Date (D)** and at least one note field are required to log an entry. The prior history in **Old ECC Dates and Notes (I)** stays visible while you write.
 
-Run **Teacher Tools > Set Up / Repair ECC Batch Columns** once. It adds only **ECC Type** and **Ready to Log** after the existing populated columns; it does not move E:I, Attempt 1/2, or other roster fields. ECC Type defaults to Conversation, or you can choose Attempt. An Attempt needs a free Attempt 1/2 cell.
+Select one student row on the ECC tab and use **Teacher Tools > Log Current ECC in PowerSchool**. The script handles only that selected row, archives its dated note in column I, and opens one PowerSchool handoff for review. It never submits the PowerSchool log.
 
-- To archive notes for several students, check **Ready to Log** on each row and use **Log Ready ECC Rows**. This archives dated notes in I. It does not open or submit PowerSchool logs for those students.
-- To archive one row and open its PowerSchool ECC log, select a cell on that ECC row and use **Log Current ECC Row & Open PowerSchool**. Review the prepared log and submit it yourself.
-- Recent notes in E:H and the date in D remain visible after either action. Identical dated entries are not appended to history twice, and you can retry a PowerSchool handoff for an already archived entry. Ready checkboxes are unchecked only when their row was handled successfully.
+- **ECC Type** may be set to Conversation or Attempt when that column is present; otherwise the current ECC defaults to Conversation. An Attempt needs a free Attempt 1/2 cell.
+- The former batch actions are no longer shown in Teacher Tools. Existing **Ready to Log** or **ECC Type** columns are left in place so no roster data is deleted or shifted.
+- Recent notes in E:H and the date in D remain visible. An identical dated entry is not appended to history twice, so the same current row can be retried without duplicating its archived note.
 - If the action fails, open the **Automation Log** tab to review the recorded error. Do not share a handoff marker outside your authorized student-data systems.
 
 Run the ECC checks from the repository root with `node --test tests/ecc.test.cjs`.

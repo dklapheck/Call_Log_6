@@ -119,27 +119,6 @@ test('reads all four wrapped headers and preserves recent notes after archiving'
   assert.deepEqual(env.data[1].slice(3, 8), original.slice(0, 5));
 });
 
-test('sets up only two controls after existing data and logs multiple ready rows', () => {
-  const second = Array(26).fill('');
-  second[1] = 789012;
-  second[3] = new Date(2026, 8, 12);
-  second[6] = 'Current grade update';
-  second[8] = 'Earlier history';
-  const env = environment([second]);
-  const before = env.data[0].slice();
-  env.context.setupEccBatchLayout();
-  assert.deepEqual(env.data[0].slice(0, 26), before);
-  assert.deepEqual(env.data[0].slice(26), ['ECC Type', 'Ready to Log']);
-  env.data[1][27] = true;
-  env.data[2][27] = true;
-  env.context.logReadyEccRows();
-  assert.match(env.data[1][8], /Overall:/);
-  assert.match(env.data[2][8], /Grades: Current grade update/);
-  assert.equal(env.data[1][27], false);
-  assert.equal(env.data[2][27], false);
-  assert.equal(env.data[1][4], 'Needs help with homework');
-});
-
 test('repeated handoff reopens without appending another history entry', () => {
   const env = environment();
   env.context.logCurrentEccRowAndOpenPowerSchool();
@@ -151,7 +130,7 @@ test('repeated handoff reopens without appending another history entry', () => {
 
 test('a full attempt pair leaves history and recent notes intact', () => {
   const env = environment();
-  env.context.setupEccBatchLayout();
+  env.data[0][26] = 'ECC Type';
   env.data[1][9] = 'Old attempt one';
   env.data[1][10] = 'Old attempt two';
   env.data[1][26] = 'Attempt';

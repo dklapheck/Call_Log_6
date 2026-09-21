@@ -29,7 +29,7 @@ Use the ECC tab directly. The new note columns are **Overall (E), Classes (F), G
 Select one student row on the ECC tab and use **Teacher Tools > Log Current ECC in PowerSchool**. The script handles only that selected row, archives its dated note in column I, and opens one PowerSchool handoff for review. It never submits the PowerSchool log.
 
 - **ECC Type** may be set to Conversation or Attempt when that column is present; otherwise the current ECC defaults to Conversation. An Attempt needs a free Attempt 1/2 cell.
-- The former batch actions are no longer shown in Teacher Tools. Existing **Ready to Log** or **ECC Type** columns are left in place so no roster data is deleted or shifted.
+- Existing extra ECC columns are left in place so no roster data is deleted or shifted.
 - Recent notes in E:H and the date in D remain visible. An identical dated entry is not appended to history twice, so the same current row can be retried without duplicating its archived note.
 - If the action fails, open the **Automation Log** tab to review the recorded error. Do not share a handoff marker outside your authorized student-data systems.
 

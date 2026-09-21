@@ -1,10 +1,10 @@
-// Editable PowerSchool contact choices in Instructions and Settings!A34:G38.
+// Editable PowerSchool contact choices in Instructions and Settings!A34:I38.
 // Read on every handoff, so the next call uses the latest saved cells.
 function getPowerSchoolContactSettings_(ss, workflow) {
   const sheet = ss.getSheetByName('Instructions and Settings');
   if (!sheet) throw new Error('Instructions and Settings tab is missing.');
 
-  const rows = sheet.getRange('A35:G38').getDisplayValues();
+  const rows = sheet.getRange('A35:I38').getDisplayValues();
   const row = rows.find(function(values) {
     return String(values[0] || '').trim() === workflow;
   });
@@ -34,10 +34,22 @@ function getPowerSchoolContactSettings_(ss, workflow) {
     }
   }
 
+  const dateField = String(row[7] || '').trim();
+  if (dateField && !/^[A-Za-z0-9_$:=.-]{1,120}$/.test(dateField)) {
+    throw new Error('Log date field for ' + workflow + ' is not a safe PowerSchool control name.');
+  }
+
+  const tagLabel = String(row[8] || '').trim();
+  if (tagLabel.length > 120 || /[\t\r\n]/.test(tagLabel)) {
+    throw new Error('Tag label for ' + workflow + ' must be one line and no more than 120 characters.');
+  }
+
   return {
     workflow: workflow,
     typeValue: typeValue,
     subtypeValue: subtypeValue,
-    extraDropdowns: extraDropdowns
+    extraDropdowns: extraDropdowns,
+    dateField: dateField,
+    tagLabel: tagLabel
   };
 }

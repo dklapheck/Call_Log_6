@@ -144,12 +144,18 @@ function saveSccEntry_() {
   entry.ss.toast('SCC saved and marked Completed for ' + studentName + '.', 'SCC Saved', 4);
 }
 
+function getSccLogDate_(note) {
+  const match = String(note || '').match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/);
+  return match ? match[1] : '';
+}
+
 function sendSccHandoff_(studentId, note, workflow) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   try {
     const settings = getPowerSchoolContactSettings_(ss, workflow);
     const encoded = Utilities.base64EncodeWebSafe(
-      JSON.stringify({ v: 1, studentNumber: normalizeId_(studentId), note: note,
+      JSON.stringify({ v: 1, studentNumber: normalizeId_(studentId),
+        date: getSccLogDate_(note), note: note,
         outcome: workflow, settings: settings }),
       Utilities.Charset.UTF_8
     ).replace(/=+$/g, '');

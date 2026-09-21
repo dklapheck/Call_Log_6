@@ -8,7 +8,14 @@ function logSccInPowerSchool() {
   const entry = getSccPowerSchoolEntry_('SCC Not Logged');
   if (!entry) return;
 
-  sendSccHandoff_(entry.studentId, entry.sccNote, entry.workflow);
+  try {
+    const attemptNumber = getSccAttemptNumberForEntry_(entry);
+    sendSccHandoff_(entry.studentId, entry.sccNote, entry.workflow, attemptNumber);
+  } catch (error) {
+    logAutomationEvent_('ERROR', 'SCC Handoff', entry.studentId,
+      'Could not determine the SCC attempt number.', getErrorDetails_(error));
+    entry.ss.toast(error.message || String(error), 'SCC Not Logged', 8);
+  }
 }
 
 function getSccPowerSchoolEntry_(failureTitle) {
@@ -63,8 +70,32 @@ function getSelectedSccRosterEntry_(activeRange, failureTitle) {
     sccNote: note,
     successfulContact: isSuccess,
     workflow: isSuccess ? 'SCC Success' : 'SCC Attempt',
-    sourceHeader: selectedHeader
+    sourceHeader: selectedHeader,
+    attemptNumber: isAttempt ? attemptHeaders.indexOf(selectedHeader) + 1 : null
   };
+}
+
+function getSccAttemptNumberForEntry_(entry) {
+  if (entry.workflow !== 'SCC Attempt') return null;
+  if (entry.attemptNumber) return Number(entry.attemptNumber);
+
+  const rosterSheet = getRequiredSheet_(entry.ss, SCC_CONFIG.sheets.roster);
+  const rosterRow = findStudentRosterRow_(rosterSheet, entry.studentId);
+  if (!rosterRow) {
+    throw new Error('Student ID ' + entry.studentId + ' was not found on the SCC sheet.');
+  }
+
+  const attemptHeaders = SCC_CONFIG.roster.attemptHeaders ||
+    ['Attempt 1', 'Attempt 2', 'Attempt 3', 'Attempt 4', 'Attempt 5'];
+  let firstEmpty = null;
+  for (let i = 0; i < attemptHeaders.length; i++) {
+    const column = findHeaderColumn_(rosterSheet, attemptHeaders[i]);
+    const savedNote = rosterSheet.getRange(rosterRow, column).getDisplayValue().trim();
+    if (savedNote === entry.sccNote) return i + 1;
+    if (!savedNote && firstEmpty === null) firstEmpty = i + 1;
+  }
+  if (firstEmpty !== null) return firstEmpty;
+  throw new Error('No empty Attempt 1–5 column is available for this student.');
 }
 
 // Backward-compatible name for any existing drawing/button assignment.
@@ -149,14 +180,14 @@ function getSccLogDate_(note) {
   return match ? match[1] : '';
 }
 
-function sendSccHandoff_(studentId, note, workflow) {
+function sendSccHandoff_(studentId, note, workflow, attemptNumber) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   try {
     const settings = getPowerSchoolContactSettings_(ss, workflow);
     const encoded = Utilities.base64EncodeWebSafe(
       JSON.stringify({ v: 1, studentNumber: normalizeId_(studentId),
         date: getSccLogDate_(note), note: note,
-        outcome: workflow, settings: settings }),
+        outcome: workflow, attemptNumber: attemptNumber || null, settings: settings }),
       Utilities.Charset.UTF_8
     ).replace(/=+$/g, '');
     const marker = 'SCC_HANDOFF_V1:' + encoded;

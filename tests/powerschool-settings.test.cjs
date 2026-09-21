@@ -10,16 +10,16 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'PowerSchoolSettings.g
 
 function makeSettings() {
   const rows = [
-    ['SCC Success', '', '', '', '', '', ''],
-    ['SCC Attempt', '', '', '', '', '', ''],
-    ['ECC Conversation', '1187', 'Student Contact', 'GE:ECC', 'ECC', '', ''],
-    ['ECC Attempt', '1187', 'Student Contact', 'GE:ECC', 'ECC', '', '']
+    ['SCC Success', '', '', '', '', '', '', 'entryLogDate', ''],
+    ['SCC Attempt', '', '', '', '', '', '', 'entryLogDate', 'Attempt 1'],
+    ['ECC Conversation', '1187', 'Student Contact', 'GE:ECC', 'ECC', '', '', 'entryLogDate', ''],
+    ['ECC Attempt', '1187', 'Student Contact', 'GE:ECC', 'ECC', '', '', 'entryLogDate', '']
   ];
   const spreadsheet = {
     getSheetByName(name) {
       return name === 'Instructions and Settings'
         ? { getRange(range) {
-            assert.equal(range, 'A35:G38');
+            assert.equal(range, 'A35:I38');
             return { getDisplayValues: () => rows };
           } }
         : null;
@@ -40,6 +40,13 @@ test('SCC success and attempt read separate live Settings rows', () => {
   assert.equal(settings.read('SCC Attempt').typeValue, 'attempt_type');
   settings.rows[0][3] = 'changed_on_website';
   assert.equal(settings.read('SCC Success').subtypeValue, 'changed_on_website');
+});
+
+test('date field and tag label come from the live workflow row', () => {
+  const settings = makeSettings();
+  assert.equal(settings.read('SCC Success').dateField, 'entryLogDate');
+  assert.equal(settings.read('SCC Attempt').tagLabel, 'Attempt 1');
+  assert.equal(settings.read('ECC Conversation').tagLabel, '');
 });
 
 test('blank manual settings and safe additional dropdowns', () => {

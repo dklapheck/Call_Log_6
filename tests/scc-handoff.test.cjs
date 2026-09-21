@@ -63,7 +63,8 @@ function fixture({ yes = true, no = false, attemptSaved = true, duplicate = fals
     getPowerSchoolContactSettings_: (_ss, workflow) => ({
       workflow, typeValue: workflow === 'SCC Success' ? 'SUCCESS_TYPE' : 'ATTEMPT_TYPE',
       subtypeValue: workflow === 'SCC Success' ? 'SUCCESS_SUBTYPE' : 'ATTEMPT_SUBTYPE',
-      extraDropdowns: []
+      extraDropdowns: [], dateField: 'entryLogDate',
+      tagLabel: workflow === 'SCC Attempt' ? 'Attempt 1' : ''
     }),
     logAutomationEvent_: (...args) => events.push(args),
     getErrorDetails_: e => String(e)
@@ -86,7 +87,9 @@ test('logging a successful call creates a handoff without saving the roster', ()
   assert.equal(payload(env.events).note, env.values.note);
   assert.equal(payload(env.events).studentNumber, '12345678');
   assert.equal(payload(env.events).outcome, 'SCC Success');
+  assert.equal(payload(env.events).date, '9/18/2026');
   assert.equal(payload(env.events).settings.subtypeValue, 'SUCCESS_SUBTYPE');
+  assert.equal(payload(env.events).settings.dateField, 'entryLogDate');
 });
 
 test('previously saved call can be logged again without changing the roster', () => {
@@ -109,6 +112,7 @@ test('invalid contact does not create a handoff, but logging does not depend on 
   const full = fixture({ yes: false, no: true, attemptSaved: false });
   full.context.logSccInPowerSchool();
   assert.equal(payload(full.events).outcome, 'SCC Attempt');
+  assert.equal(payload(full.events).settings.tagLabel, 'Attempt 1');
   const attempt = fixture({ yes: false, no: true });
   attempt.context.logSccInPowerSchool();
   assert.equal(payload(attempt.events).note, attempt.values.note);

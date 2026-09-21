@@ -18,9 +18,9 @@ After selecting a student on **Call Entry**, select cell **B15**, labeled **Demo
 
 ## PowerSchool selections in the Settings tab
 
-On **Instructions and Settings**, use the **PowerSchool contact log settings** table in A34:G38. The four rows are **SCC Success**, **SCC Attempt**, **ECC Conversation**, and **ECC Attempt**. Enter the exact PowerSchool option values in **Log Type value** (B) and **Subtype value** (D); C and E are human-readable labels. An optional **Additional dropdowns (JSON)** cell (F) accepts an array such as `[{"name":"result","value":"no_answer"}]`. Leave B and D both blank to select Type/Subtype manually on that PowerSchool log. The known ECC values are prefilled; SCC values need to be captured from your school's form.
+On **Instructions and Settings**, use the **PowerSchool contact log settings** table in A34:I38. The four rows are **SCC Success**, **SCC Attempt**, **ECC Conversation**, and **ECC Attempt**. Enter the exact PowerSchool option values in **Log Type value** (B) and **Subtype value** (D); C and E are human-readable labels. Column H stores the PowerSchool log-date control and column I stores the exact visible tag label. An optional **Additional dropdowns (JSON)** cell (F) accepts an array such as `[{"name":"result","value":"no_answer"}]`. Leave B and D both blank to select Type/Subtype manually on that PowerSchool log.
 
-Each handoff reads the current Settings cells and sends the matching row's values to the extension. Editing these cells changes the next handoff without reinstalling the extension. The temporary extension capture tool can copy Type/Subtype values for pasting into columns B:E. Do not put student numbers or notes in this settings table. The ECC date controls will be handled in extension code once their actual PowerSchool controls are captured.
+Each handoff reads the current Settings cells and sends Type, Subtype, Date field, Tag label, and any additional dropdowns to the extension. Editing these cells changes the next handoff without reinstalling Apps Script. SCC dates are read from the call note; ECC uses the row's ECC Date. Do not put student numbers or notes in this settings table.
 
 ## ECC notes in the final roster
 

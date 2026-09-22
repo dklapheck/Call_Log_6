@@ -185,7 +185,8 @@ function sendSccHandoff_(studentId, note, workflow, attemptNumber) {
   try {
     const settings = getPowerSchoolContactSettings_(ss, workflow);
     const encoded = Utilities.base64EncodeWebSafe(
-      JSON.stringify({ v: 1, studentNumber: normalizeId_(studentId),
+      JSON.stringify({ v: 1, requestId: Utilities.getUuid(),
+        studentNumber: normalizeId_(studentId),
         date: getSccLogDate_(note), note: note,
         outcome: workflow, attemptNumber: attemptNumber || null, settings: settings }),
       Utilities.Charset.UTF_8

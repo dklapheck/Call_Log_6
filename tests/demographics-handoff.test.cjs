@@ -11,16 +11,30 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-function fixture({ sheetName = 'Call Entry', cell = 'B15', studentId = 12345678 } = {}) {
+function fixture({
+  sheetName = 'Call Entry', studentId = 12345678,
+  selectedValue = 87654321, rows = 1, columns = 1
+} = {}) {
   const events = [];
   const toasts = [];
   const callSheet = {
-    getName: () => sheetName,
+    getName: () => 'Call Entry',
     getRange: () => ({ getValue: () => studentId })
+  };
+  const activeSheet = { getName: () => sheetName };
+  const activeRange = {
+    getSheet: () => activeSheet,
+    getValue: () => selectedValue,
+    getNumRows: () => rows,
+    getNumColumns: () => columns
   };
   const ss = { toast: (...args) => toasts.push(args) };
   const context = vm.createContext({
-    SpreadsheetApp: { getActiveSpreadsheet: () => ss, flush() {} },
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => ss,
+      getActiveRange: () => activeRange,
+      flush() {}
+    },
     Utilities: {
       Charset: { UTF_8: 'UTF-8' },
       base64EncodeWebSafe: data => Buffer.from(data).toString('base64url')
@@ -29,20 +43,17 @@ function fixture({ sheetName = 'Call Entry', cell = 'B15', studentId = 12345678 
       sheets: { callEntry: 'Call Entry' },
       callEntry: { demographicsAction: 'B15', studentId: 'O2' }
     },
-    getRequiredSheet_: () => callSheet,
-    normalizeId_: value => String(value || ''),
+    getRequiredSheet_: (_ss, name) => {
+      assert.equal(name, 'Call Entry');
+      return callSheet;
+    },
+    normalizeId_: value => String(value || '').trim().replace(/\.0$/, ''),
     logAutomationEvent_: (...args) => events.push(args),
     getErrorDetails_: error => String(error)
   });
   vm.runInContext(source, context);
   return {
     context,
-    event: {
-      range: {
-        getSheet: () => callSheet,
-        getA1Notation: () => cell
-      }
-    },
     events,
     toasts
   };
@@ -59,9 +70,9 @@ function decodeMarker(toasts) {
   ).toString());
 }
 
-test('selecting Call Entry B15 sends the selected student to PowerSchool', () => {
+test('menu action on Call Entry uses the form student regardless of selected cell', () => {
   const env = fixture();
-  env.context.onSelectionChange(env.event);
+  env.context.openStudentDemographics();
   assert.deepEqual(decodeMarker(env.toasts), {
     v: 1,
     studentNumber: '12345678'
@@ -69,19 +80,30 @@ test('selecting Call Entry B15 sends the selected student to PowerSchool', () =>
   assert.equal(env.events[0][1], 'Demographics Handoff');
 });
 
-test('other cells and sheets do nothing', () => {
-  const otherCell = fixture({ cell: 'B14' });
-  otherCell.context.onSelectionChange(otherCell.event);
-  assert.equal(otherCell.toasts.length, 0);
-
-  const otherSheet = fixture({ sheetName: 'SCC' });
-  otherSheet.context.onSelectionChange(otherSheet.event);
-  assert.equal(otherSheet.toasts.length, 0);
+test('menu action on another tab uses the selected student-number cell', () => {
+  const env = fixture({ sheetName: 'SCC', selectedValue: 87654321 });
+  env.context.openStudentDemographics();
+  assert.deepEqual(decodeMarker(env.toasts), {
+    v: 1,
+    studentNumber: '87654321'
+  });
 });
 
-test('no selected student shows a friendly message without a handoff', () => {
+test('Call Entry without a selected student shows a friendly message', () => {
   const env = fixture({ studentId: '' });
-  env.context.onSelectionChange(env.event);
+  env.context.openStudentDemographics();
   assert.equal(decodeMarker(env.toasts), null);
   assert.match(env.toasts[0][0], /Select a student/);
+});
+
+test('another tab requires one cell containing a valid student number', () => {
+  const text = fixture({ sheetName: 'SCC', selectedValue: 'Completed' });
+  text.context.openStudentDemographics();
+  assert.equal(decodeMarker(text.toasts), null);
+  assert.match(text.toasts[0][0], /valid Student Number/);
+
+  const many = fixture({ sheetName: 'SCC', rows: 2 });
+  many.context.openStudentDemographics();
+  assert.equal(decodeMarker(many.toasts), null);
+  assert.match(many.toasts[0][0], /Select one cell/);
 });

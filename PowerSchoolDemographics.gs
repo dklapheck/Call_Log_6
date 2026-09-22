@@ -1,25 +1,43 @@
-function onSelectionChange(e) {
-  const range = e && e.range;
-  if (!range || range.getSheet().getName() !== SCC_CONFIG.sheets.callEntry ||
-      range.getA1Notation() !== SCC_CONFIG.callEntry.demographicsAction) {
+function openStudentDemographics() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const activeRange = typeof SpreadsheetApp.getActiveRange === 'function'
+    ? SpreadsheetApp.getActiveRange()
+    : null;
+
+  if (!activeRange) {
+    ss.toast('Select a student first.', 'PowerSchool Demographics', 5);
     return;
   }
 
-  openSelectedStudentDemographics_();
-}
-
-function openSelectedStudentDemographics_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const callSheet = getRequiredSheet_(ss, SCC_CONFIG.sheets.callEntry);
-  const studentId = normalizeId_(
-    callSheet.getRange(SCC_CONFIG.callEntry.studentId).getValue()
-  );
+  let studentId = '';
+  if (activeRange.getSheet().getName() === SCC_CONFIG.sheets.callEntry) {
+    const callSheet = getRequiredSheet_(ss, SCC_CONFIG.sheets.callEntry);
+    studentId = normalizeId_(
+      callSheet.getRange(SCC_CONFIG.callEntry.studentId).getValue()
+    );
+  } else {
+    if (activeRange.getNumRows() !== 1 || activeRange.getNumColumns() !== 1) {
+      ss.toast('Select one cell containing a Student Number.', 'PowerSchool Demographics', 6);
+      return;
+    }
+    studentId = normalizeId_(activeRange.getValue());
+    if (!/^\d{5,12}$/.test(studentId)) {
+      ss.toast('The selected cell does not contain a valid Student Number.',
+        'PowerSchool Demographics', 6);
+      return;
+    }
+  }
 
   if (!studentId) {
-    ss.toast('Select a student before opening Demographics.', 'PowerSchool Demographics', 5);
+    ss.toast('Select a student on Call Entry before opening Demographics.',
+      'PowerSchool Demographics', 5);
     return;
   }
 
+  sendDemographicsHandoff_(ss, studentId);
+}
+
+function sendDemographicsHandoff_(ss, studentId) {
   try {
     const encoded = Utilities.base64EncodeWebSafe(
       JSON.stringify({ v: 1, studentNumber: studentId }),

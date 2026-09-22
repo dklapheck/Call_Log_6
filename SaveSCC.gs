@@ -184,21 +184,23 @@ function sendSccHandoff_(studentId, note, workflow, attemptNumber) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   try {
     const settings = getPowerSchoolContactSettings_(ss, workflow);
-    const encoded = Utilities.base64EncodeWebSafe(
-      JSON.stringify({ v: 1, requestId: Utilities.getUuid(),
-        studentNumber: normalizeId_(studentId),
-        date: getSccLogDate_(note), note: note,
-        outcome: workflow, attemptNumber: attemptNumber || null, settings: settings }),
-      Utilities.Charset.UTF_8
-    ).replace(/=+$/g, '');
-    const marker = 'SCC_HANDOFF_V1:' + encoded;
-    logAutomationEvent_('INFO', 'SCC Handoff', studentId,
-      'PowerSchool handoff created.', 'Handoff marker:\n' + marker);
+    const requestId = Utilities.getUuid();
+    showPowerSchoolHandoffDialog_('scc', {
+      v: 1,
+      requestId: requestId,
+      studentNumber: normalizeId_(studentId),
+      date: getSccLogDate_(note),
+      note: note,
+      outcome: workflow,
+      attemptNumber: attemptNumber || null,
+      settings: settings
+    }, 'Open PowerSchool SCC Log');
+    logAutomationEvent_('INFO', 'SCC Handoff', '',
+      'PowerSchool handoff prepared.', 'Request ID: ' + requestId);
     SpreadsheetApp.flush();
-    ss.toast(marker, 'SCC Tools', 10);
   } catch (error) {
-    logAutomationEvent_('ERROR', 'SCC Handoff', studentId,
-      'Could not create the PowerSchool handoff.', getErrorDetails_(error));
+    logAutomationEvent_('ERROR', 'SCC Handoff', '',
+      'Could not create the PowerSchool handoff.', 'Dialog creation failed.');
     ss.toast('SCC handoff failed. See Automation Log.', 'SCC Tools', 8);
   }
 }

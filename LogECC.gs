@@ -1,5 +1,3 @@
-const ECC_HANDOFF_PREFIX_ = 'ECC_HANDOFF_V1:';
-
 // The current-row workflow keeps recent notes visible and archives only the selected student's entry.
 function logCurrentEccRowAndOpenPowerSchool() {
   return withRosterLock_(function() {
@@ -167,27 +165,23 @@ function sendEccHandoff_(payload) {
   try {
     const workflow = 'ECC ' + payload.outcome;
     const settings = getPowerSchoolContactSettings_(ss, workflow);
-    const encoded = Utilities.base64EncodeWebSafe(
-      JSON.stringify({
-        v: 1,
-        studentNumber: payload.studentNumber,
-        date: payload.date,
-        note: payload.note,
-        outcome: workflow,
-        settings: settings
-      }),
-      Utilities.Charset.UTF_8
-    ).replace(/=+$/g, '');
-    const marker = ECC_HANDOFF_PREFIX_ + encoded;
-    logAutomationEvent_('INFO', 'ECC Handoff', payload.studentNumber,
-      'PowerSchool handoff created.',
-      'Date: ' + payload.date + '\nHandoff marker:\n' + marker);
+    const requestId = Utilities.getUuid();
+    showPowerSchoolHandoffDialog_('ecc', {
+      v: 1,
+      requestId: requestId,
+      studentNumber: payload.studentNumber,
+      date: payload.date,
+      note: payload.note,
+      outcome: workflow,
+      settings: settings
+    }, 'Open PowerSchool ECC Log');
+    logAutomationEvent_('INFO', 'ECC Handoff', '',
+      'PowerSchool handoff prepared.',
+      'Request ID: ' + requestId);
     SpreadsheetApp.flush();
-    ss.toast(marker, 'ECC Tools', 10);
   } catch (error) {
-    logAutomationEvent_('ERROR', 'ECC Handoff',
-      payload && payload.studentNumber ? payload.studentNumber : '',
-      'Could not create the PowerSchool handoff.', getErrorDetails_(error));
+    logAutomationEvent_('ERROR', 'ECC Handoff', '',
+      'Could not create the PowerSchool handoff.', 'Dialog creation failed.');
     ss.toast('ECC handoff failed. See Automation Log.', 'ECC Handoff', 8);
   }
 }

@@ -39,22 +39,18 @@ function openStudentDemographics() {
 
 function sendDemographicsHandoff_(ss, studentId) {
   try {
-    const encoded = Utilities.base64EncodeWebSafe(
-      JSON.stringify({
-        v: 1,
-        requestId: Utilities.getUuid(),
-        studentNumber: studentId
-      }),
-      Utilities.Charset.UTF_8
-    ).replace(/=+$/g, '');
-    const marker = 'DEMOGRAPHICS_HANDOFF_V1:' + encoded;
-    logAutomationEvent_('INFO', 'Demographics Handoff', studentId,
-      'PowerSchool demographics handoff created.', 'Handoff marker:\n' + marker);
+    const requestId = Utilities.getUuid();
+    showPowerSchoolHandoffDialog_('demographics', {
+      v: 1,
+      requestId: requestId,
+      studentNumber: studentId
+    }, 'Open PowerSchool Demographics');
+    logAutomationEvent_('INFO', 'Demographics Handoff', '',
+      'PowerSchool demographics handoff prepared.', 'Request ID: ' + requestId);
     SpreadsheetApp.flush();
-    ss.toast(marker, 'PowerSchool Demographics', 10);
   } catch (error) {
-    logAutomationEvent_('ERROR', 'Demographics Handoff', studentId,
-      'Could not create the PowerSchool demographics handoff.', getErrorDetails_(error));
+    logAutomationEvent_('ERROR', 'Demographics Handoff', '',
+      'Could not create the PowerSchool demographics handoff.', 'Dialog creation failed.');
     ss.toast('Demographics handoff failed. See Automation Log.', 'PowerSchool Demographics', 8);
   }
 }

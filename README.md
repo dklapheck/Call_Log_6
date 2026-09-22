@@ -14,6 +14,8 @@ The call is usually with a parent at the start of the semester. The PowerSchool 
 
 Use **Teacher Tools > Open Demographics** to open a student's PowerSchool Demographics screen. On **Call Entry**, the action uses the student currently selected in the form. On any other tab, first select one cell containing a Student Number, then run the same action. The former B15 selection trigger was removed because Google Sheets does not fire selection events consistently when a cell stays selected. Refresh the Sheet after updating Apps Script and reload the unpacked extension after updating its files.
 
+Each PowerSchool handoff includes a unique request ID. This lets the extension block duplicate frame reports and reload replays without blocking a later intentional action for the same student.
+
 **Teacher Tools > Refresh Student Data** also refreshes counselor information. Counselor names come from the source workbook's **Upstream** `COUNSELOR` field and are saved to **SCC column AA**. Counselor emails are reused from the existing **SCC Counselor/Counselor Email** directory; the script leaves an unknown email blank rather than guessing it. **Call Entry C40** displays the selected student's counselor and email automatically and is preserved when the Call Entry form is reset.
 
 ## PowerSchool selections in the Settings tab

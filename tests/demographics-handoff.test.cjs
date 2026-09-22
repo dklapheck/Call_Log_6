@@ -17,6 +17,8 @@ function fixture({
 } = {}) {
   const events = [];
   const toasts = [];
+  const dialogs = [];
+  let uuidCount = 0;
   const callSheet = {
     getName: () => 'Call Entry',
     getRange: () => ({ getValue: () => studentId })
@@ -37,7 +39,7 @@ function fixture({
     },
     Utilities: {
       Charset: { UTF_8: 'UTF-8' },
-      getUuid: () => 'request-123',
+      getUuid: () => 'request-' + (++uuidCount),
       base64EncodeWebSafe: data => Buffer.from(data).toString('base64url')
     },
     SCC_CONFIG: {
@@ -49,6 +51,9 @@ function fixture({
       return callSheet;
     },
     normalizeId_: value => String(value || '').trim().replace(/\.0$/, ''),
+    showPowerSchoolHandoffDialog_: (type, payload, title) => {
+      dialogs.push({ type, payload, title });
+    },
     logAutomationEvent_: (...args) => events.push(args),
     getErrorDetails_: error => String(error)
   });
@@ -56,27 +61,19 @@ function fixture({
   return {
     context,
     events,
-    toasts
+    toasts,
+    dialogs
   };
-}
-
-function decodeMarker(toasts) {
-  const marker = toasts.find(args =>
-    String(args[0]).startsWith('DEMOGRAPHICS_HANDOFF_V1:')
-  )?.[0];
-  if (!marker) return null;
-  return JSON.parse(Buffer.from(
-    marker.split('DEMOGRAPHICS_HANDOFF_V1:')[1],
-    'base64url'
-  ).toString());
 }
 
 test('menu action on Call Entry uses the form student regardless of selected cell', () => {
   const env = fixture();
   env.context.openStudentDemographics();
-  assert.deepEqual(decodeMarker(env.toasts), {
+  assert.equal(env.dialogs.length, 1);
+  assert.equal(env.dialogs[0].type, 'demographics');
+  assert.deepEqual(JSON.parse(JSON.stringify(env.dialogs[0].payload)), {
     v: 1,
-    requestId: 'request-123',
+    requestId: 'request-1',
     studentNumber: '12345678'
   });
   assert.equal(env.events[0][1], 'Demographics Handoff');
@@ -85,28 +82,38 @@ test('menu action on Call Entry uses the form student regardless of selected cel
 test('menu action on another tab uses the selected student-number cell', () => {
   const env = fixture({ sheetName: 'SCC', selectedValue: 87654321 });
   env.context.openStudentDemographics();
-  assert.deepEqual(decodeMarker(env.toasts), {
+  assert.equal(env.dialogs.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(env.dialogs[0].payload)), {
     v: 1,
-    requestId: 'request-123',
+    requestId: 'request-1',
     studentNumber: '87654321'
   });
+});
+
+test('each valid demographics action receives a unique request ID', () => {
+  const env = fixture();
+  env.context.openStudentDemographics();
+  env.context.openStudentDemographics();
+  assert.equal(env.dialogs.length, 2);
+  assert.notEqual(env.dialogs[0].payload.requestId, env.dialogs[1].payload.requestId);
+  assert.equal(env.toasts.some(args => /DEMOGRAPHICS_HANDOFF_V1:/.test(String(args[0]))), false);
 });
 
 test('Call Entry without a selected student shows a friendly message', () => {
   const env = fixture({ studentId: '' });
   env.context.openStudentDemographics();
-  assert.equal(decodeMarker(env.toasts), null);
+  assert.equal(env.dialogs.length, 0);
   assert.match(env.toasts[0][0], /Select a student/);
 });
 
 test('another tab requires one cell containing a valid student number', () => {
   const text = fixture({ sheetName: 'SCC', selectedValue: 'Completed' });
   text.context.openStudentDemographics();
-  assert.equal(decodeMarker(text.toasts), null);
+  assert.equal(text.dialogs.length, 0);
   assert.match(text.toasts[0][0], /valid Student Number/);
 
   const many = fixture({ sheetName: 'SCC', rows: 2 });
   many.context.openStudentDemographics();
-  assert.equal(decodeMarker(many.toasts), null);
+  assert.equal(many.dialogs.length, 0);
   assert.match(many.toasts[0][0], /Select one cell/);
 });

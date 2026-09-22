@@ -33,6 +33,7 @@ function environment(extraRows = []) {
   let activeRow = 2;
   const toasts = [];
   const events = [];
+  const dialogs = [];
   const range = (row, col, rowCount = 1, colCount = 1) => ({
     getValue: () => data[row - 1]?.[col - 1],
     getDisplayValue: () => String(data[row - 1]?.[col - 1] ?? ''),
@@ -81,6 +82,7 @@ function environment(extraRows = []) {
     LockService: { getDocumentLock: () => ({ waitLock() {}, releaseLock() {} }) },
     Utilities: {
       Charset: { UTF_8: 'UTF_8' },
+      getUuid: () => 'ecc-request-123',
       formatDate: date => (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear(),
       base64EncodeWebSafe: text => Buffer.from(text).toString('base64url')
     },
@@ -92,12 +94,15 @@ function environment(extraRows = []) {
     getPowerSchoolContactSettings_: (_ss, workflow) => ({
       workflow, typeValue: '1187', subtypeValue: 'GE:ECC', extraDropdowns: []
     }),
+    showPowerSchoolHandoffDialog_: (type, payload, title) => {
+      dialogs.push({ type, payload, title });
+    },
     logAutomationEvent_: (...args) => events.push(args),
     getErrorDetails_: error => String(error?.message || error)
   });
   vm.runInContext(script, context, { filename: 'LogECC.gs' });
   return {
-    data, sheet, context, toasts, events,
+    data, sheet, context, toasts, events, dialogs,
     setActiveRow: row => { activeRow = row; }
   };
 }
@@ -125,7 +130,10 @@ test('repeated handoff reopens without appending another history entry', () => {
   const history = env.data[1][8];
   env.context.logCurrentEccRowAndOpenPowerSchool();
   assert.equal(env.data[1][8], history);
-  assert.equal(env.toasts.filter(t => t.startsWith('ECC_HANDOFF_V1:')).length, 2);
+  assert.equal(env.dialogs.length, 2);
+  assert.equal(env.dialogs[0].type, 'ecc');
+  assert.equal(env.dialogs[0].payload.requestId, 'ecc-request-123');
+  assert.equal(env.dialogs[0].payload.studentNumber, '123456');
 });
 
 test('a full attempt pair leaves history and recent notes intact', () => {
@@ -145,7 +153,7 @@ test('a full attempt pair leaves history and recent notes intact', () => {
 test('the old handoff menu name still opens PowerSchool once', () => {
   const env = environment();
   env.context.archiveAndOpenPowerSchoolECC();
-  assert.equal(env.toasts.filter(t => t.startsWith('ECC_HANDOFF_V1:')).length, 1);
+  assert.equal(env.dialogs.length, 1);
   assert.match(env.data[1][8], /Overall:/);
 });
 
@@ -153,5 +161,5 @@ test('the old archive-only menu name never opens PowerSchool', () => {
   const env = environment();
   env.context.archiveCurrentECCNote();
   assert.match(env.data[1][8], /Overall:/);
-  assert.equal(env.toasts.filter(t => t.startsWith('ECC_HANDOFF_V1:')).length, 0);
+  assert.equal(env.dialogs.length, 0);
 });

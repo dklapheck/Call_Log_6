@@ -37,6 +37,7 @@ function fixture({
     },
     Utilities: {
       Charset: { UTF_8: 'UTF-8' },
+      getUuid: () => 'request-123',
       base64EncodeWebSafe: data => Buffer.from(data).toString('base64url')
     },
     SCC_CONFIG: {
@@ -75,6 +76,7 @@ test('menu action on Call Entry uses the form student regardless of selected cel
   env.context.openStudentDemographics();
   assert.deepEqual(decodeMarker(env.toasts), {
     v: 1,
+    requestId: 'request-123',
     studentNumber: '12345678'
   });
   assert.equal(env.events[0][1], 'Demographics Handoff');
@@ -85,6 +87,7 @@ test('menu action on another tab uses the selected student-number cell', () => {
   env.context.openStudentDemographics();
   assert.deepEqual(decodeMarker(env.toasts), {
     v: 1,
+    requestId: 'request-123',
     studentNumber: '87654321'
   });
 });

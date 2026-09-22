@@ -46,6 +46,7 @@ function fixture({ yes = true, no = false, attemptSaved = true, duplicate = fals
     SpreadsheetApp: { getActiveSpreadsheet: () => ss, flush() {} },
     Utilities: {
       Charset: { UTF_8: 'UTF-8' },
+      getUuid: () => 'request-123',
       base64EncodeWebSafe: data => Buffer.from(data).toString('base64url')
     },
     SCC_CONFIG: {

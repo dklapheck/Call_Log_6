@@ -40,7 +40,11 @@ function openStudentDemographics() {
 function sendDemographicsHandoff_(ss, studentId) {
   try {
     const encoded = Utilities.base64EncodeWebSafe(
-      JSON.stringify({ v: 1, studentNumber: studentId }),
+      JSON.stringify({
+        v: 1,
+        requestId: Utilities.getUuid(),
+        studentNumber: studentId
+      }),
       Utilities.Charset.UTF_8
     ).replace(/=+$/g, '');
     const marker = 'DEMOGRAPHICS_HANDOFF_V1:' + encoded;

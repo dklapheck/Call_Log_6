@@ -12,7 +12,7 @@ On **Call Entry**, saving and PowerSchool logging are separate actions:
 
 The call is usually with a parent at the start of the semester. The PowerSchool helper never clicks Submit: review the log and submit it yourself.
 
-After selecting a student on **Call Entry**, select cell **B15**, labeled **Demographics Correct?**, to open that student's PowerSchool Demographics screen. This is a Google Sheets selection action, so choose another cell before selecting B15 again if you want to reopen it. Refresh the Sheet after updating Apps Script and reload the unpacked extension after updating its files.
+Use **Teacher Tools > Open Demographics** to open a student's PowerSchool Demographics screen. On **Call Entry**, the action uses the student currently selected in the form. On any other tab, first select one cell containing a Student Number, then run the same action. The former B15 selection trigger was removed because Google Sheets does not fire selection events consistently when a cell stays selected. Refresh the Sheet after updating Apps Script and reload the unpacked extension after updating its files.
 
 **Teacher Tools > Refresh Student Data** also refreshes counselor information. Counselor names come from the source workbook's **Upstream** `COUNSELOR` field and are saved to **SCC column AA**. Counselor emails are reused from the existing **SCC Counselor/Counselor Email** directory; the script leaves an unknown email blank rather than guessing it. **Call Entry C40** displays the selected student's counselor and email automatically and is preserved when the Call Entry form is reset.
 

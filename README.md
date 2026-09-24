@@ -65,6 +65,14 @@ Enter the exact PowerSchool option values in **Log Type value** and **Subtype va
 
 Each handoff reads the current settings. SCC dates come from the call note; ECC uses the row's ECC Date. The extension does not fill the time portion or Action Taken End Date.
 
+## Refresh Student Data
+
+Refresh Student Data reads Class Roster as well as Upstream. New Class Roster students who are not yet present in Upstream are added to StudentData and SCC, with names, grade, start date, and school from the roster. They are labeled "Class Roster / awaiting Upstream" until Upstream supplies the additional data. Existing SCC rows and teacher-entered notes, attempts, completion, and onboarding fields are retained. Repeated refreshes do not add duplicate student numbers. Explicit inactive Upstream records and latest DROP records for roster-only students are not reactivated.
+
+Class Roster must have unique Student Number, LAST NAME, FIRST NAME, GRADE, START DATE, and SCHOOL headers with data aligned below them. Invalid or conflicting rows stop the refresh before any destination writes; correct the source paste and retry.
+
+To install this fix in an existing roster, replace only the contents of **RefreshStudentData.gs** in **Extensions > Apps Script**, save, and run **Teacher Tools > Refresh Student Data** again. This code change does not require a PowerSchool extension update. Updating GitHub alone does not update the spreadsheet's bound Apps Script.
+
 ## Automated tests
 
 From the repository root, run:

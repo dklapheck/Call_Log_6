@@ -7,6 +7,11 @@ function refreshStudentData() {
     const proRoster = readSheetTable_(getRequiredSheet_(source, APP_CONFIG.source.proRoster));
     const courseGrades = readSheetTable_(getRequiredSheet_(source, APP_CONFIG.source.courseGrades));
     const addDrop = readSheetTable_(getRequiredSheet_(source, APP_CONFIG.source.addDrop));
+    // Class Roster can receive new enrollments before Upstream does.
+    // Validate its layout before writing anything to the destination workbook.
+    const classRoster = refreshClassRosterIndex_(readSheetTable_(
+      getRequiredSheet_(source, APP_CONFIG.source.classRoster || 'Class Roster')
+    ));
 
     const studentDataSheet = getRequiredSheet_(ss, APP_CONFIG.sheets.studentData);
     const contactsSheet = getRequiredSheet_(ss, APP_CONFIG.sheets.contacts);
@@ -18,7 +23,7 @@ function refreshStudentData() {
     const settingsSheet = getRequiredSheet_(ss, APP_CONFIG.sheets.settings);
 
     const overrides = refreshBuildOverrides_(overridesSheet);
-    const data = refreshBuildStudents_(upstream, courseGrades, addDrop, sccSheet, overrides);
+    const data = refreshBuildStudents_(upstream, courseGrades, addDrop, sccSheet, overrides, classRoster);
     writeRowsBelowHeader_(studentDataSheet, data.rows);
 
     const contacts = refreshBuildContacts_(proRoster, upstream, overrides);
@@ -90,7 +95,52 @@ function refreshBuildOverrides_(sheet) {
   };
 }
 
-function refreshBuildStudents_(upstream, courseGrades, addDrop, sccSheet, overrides) {
+function refreshClassRosterIndex_(table) {
+  const required = ['Student Number', 'LAST NAME', 'FIRST NAME', 'GRADE', 'START DATE', 'SCHOOL'];
+  required.forEach(function(header) {
+    if (table.headers.filter(function(value) { return String(value || '').trim() === header; }).length !== 1) {
+      throw new Error('Class Roster needs exactly one "' + header + '" header. No student data was refreshed.');
+    }
+  });
+  const h = table.headerMap;
+  const rows = table.rows.filter(function(row) {
+    return row.some(function(value) { return String(value == null ? '' : value).trim() !== ''; });
+  });
+  if (!rows.length) return {};
+
+  function value(row, header) {
+    const cell = row[h[header]];
+    return cell == null ? '' : cell;
+  }
+  function valid(row) {
+    const id = normalizeId_(value(row, 'Student Number'));
+    const last = String(value(row, 'LAST NAME')).trim();
+    const first = String(value(row, 'FIRST NAME')).trim();
+    const grade = String(value(row, 'GRADE')).trim();
+    return /^\d{5,12}$/.test(id) && !!last && !!first &&
+      !/^\d+$/.test(last) && !/^\d+$/.test(first) &&
+      /^(?:(?:[0-9]|1[0-2])(?:(?:st|nd|rd|th)?\s+Grade)?|TK|K|Kindergarten)$/i.test(grade);
+  }
+  // Read named columns only. A misaligned paste must be fixed at the source.
+  if (!rows.every(valid)) {
+    throw new Error('Class Roster columns do not consistently match Student Number, LAST NAME, FIRST NAME, and GRADE. Align the export with its headers and refresh again. No student data was refreshed.');
+  }
+  const byId = {};
+  rows.forEach(function(row) {
+    const id = normalizeId_(value(row, 'Student Number'));
+    const record = {};
+    required.forEach(function(header) { record[header] = value(row, header); });
+    record['SPED'] = typeof h['SPED'] === 'undefined' ? '' : value(row, 'SPED');
+    if (byId[id] && JSON.stringify(byId[id]) !== JSON.stringify(record)) {
+      throw new Error('Class Roster contains conflicting duplicate student rows. Resolve them before refreshing.');
+    }
+    byId[id] = record;
+  });
+  return byId;
+}
+
+function refreshBuildStudents_(upstream, courseGrades, addDrop, sccSheet, overrides, classRoster) {
+  classRoster = classRoster || {};
   const uh = upstream.headerMap;
   const ch = courseGrades.headerMap;
   const ah = addDrop.headerMap;
@@ -139,6 +189,7 @@ function refreshBuildStudents_(upstream, courseGrades, addDrop, sccSheet, overri
     if (id && ['Y','YES','TRUE'].indexOf(active) !== -1 && ids.indexOf(id) === -1) ids.push(id);
   });
   Object.keys(sccIndex).forEach(function(id) { if (ids.indexOf(id) === -1) ids.push(id); });
+  Object.keys(classRoster).forEach(function(id) { if (ids.indexOf(id) === -1) ids.push(id); });
 
   const headers = [
     'Student Number','Source Last Name','Source First Name','Grade','Enroll Date','School',
@@ -158,15 +209,20 @@ function refreshBuildStudents_(upstream, courseGrades, addDrop, sccSheet, overri
 
   ids.forEach(function(id) {
     const row = upstreamById[id] || null;
+    const roster = classRoster[id] || null;
+    const latest = addLatest[id] || {};
+    const dropped = String(latest.event || '').trim().toUpperCase().indexOf('DROP') === 0;
     const activeText = row ? String(refreshValue_(row, uh, 'CURRENT_ACTIVE_STUDENT')).toUpperCase() : '';
-    const active = ['Y','YES','TRUE'].indexOf(activeText) !== -1;
-    const last = row ? refreshValue_(row, uh, 'STUDENT_LAST_NAME') : scc(id, 'LAST NAME');
-    const first = row ? refreshValue_(row, uh, 'STUDENT_FIRST_NAME') : scc(id, 'FIRST NAME');
+    const active = row ? ['Y','YES','TRUE'].indexOf(activeText) !== -1 : !!roster && !dropped;
+    function rosterFallback(header) {
+      return roster && roster[header] !== '' ? roster[header] : scc(id, header);
+    }
+    const last = row ? refreshValue_(row, uh, 'STUDENT_LAST_NAME') : rosterFallback('LAST NAME');
+    const first = row ? refreshValue_(row, uh, 'STUDENT_FIRST_NAME') : rosterFallback('FIRST NAME');
     const sourceEmail = row ? refreshValue_(row, uh, 'EMAIL_O365') : scc(id, 'Student Email');
     const sourcePreferred = scc(id, 'Prefered Name') || (String(first || '') + ' ' + String(last || '')).trim();
     const preferred = overrides.student(id, 'Preferred Name');
     const emailOverride = overrides.student(id, 'Student Email');
-    const latest = addLatest[id] || {};
 
     function subject(prefix) {
       if (!row) return '';
@@ -178,19 +234,20 @@ function refreshBuildStudents_(upstream, courseGrades, addDrop, sccSheet, overri
     }
 
     let sourceStatus = active ? 'Active Upstream' : (row ? 'Inactive Upstream' : 'SCC only / source missing');
+    if (!row && roster) sourceStatus = 'Class Roster / awaiting Upstream';
     if (!active && latest.event && String(latest.event).toUpperCase().indexOf('DROP') === 0) sourceStatus = 'Dropped / not active';
 
     const cteInfo = cte[id];
     const out = [
       Number(id) || id,
       last || '', first || '',
-      row ? refreshValue_(row, uh, 'GRADE') : scc(id, 'GRADE'),
-      row ? refreshValue_(row, uh, 'ENROLL_DATE_PS') : scc(id, 'START DATE'),
-      row ? refreshValue_(row, uh, 'SCHOOL') : scc(id, 'SCHOOL'),
+      row ? refreshValue_(row, uh, 'GRADE') : rosterFallback('GRADE'),
+      row ? refreshValue_(row, uh, 'ENROLL_DATE_PS') : rosterFallback('START DATE'),
+      row ? refreshValue_(row, uh, 'SCHOOL') : rosterFallback('SCHOOL'),
       sourceEmail || '',
       row ? refreshValue_(row, uh, 'LC_COACH_NAME') : '',
       row ? refreshValue_(row, uh, 'EMAIL_LEARNING_COACH') : '',
-      row ? refreshValue_(row, uh, 'SPED504PLAN') : scc(id, 'SPED'),
+      row ? refreshValue_(row, uh, 'SPED504PLAN') : rosterFallback('SPED'),
       row ? refreshValue_(row, uh, 'PAR_ATTENDANCE_PCT') : '',
       row ? refreshValue_(row, uh, 'PAR_CHRONICALLY_ABSENT') : '',
       row ? refreshValue_(row, uh, 'STAR_2TO12_MATH_DATE') : '',
@@ -205,7 +262,8 @@ function refreshBuildStudents_(upstream, courseGrades, addDrop, sccSheet, overri
       subject('MATH'), subject('ELA'),
       cteInfo ? (cteInfo.fail ? 'Failing' : 'Passing') : '',
       latest.event || '', latest.date || '',
-      active ? '' : 'Review — not active in current source'
+      !active ? 'Review — not active in current source' :
+        (!row && roster ? 'Review — awaiting Upstream data' : '')
     ];
 
     rows.push(out);

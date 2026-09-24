@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ECC Outlook Mailer</title>
+  <link rel="stylesheet" href="mailer.css">
+</head>
+<body>
+  <main>
+    <h1>ECC Outlook Mailer</h1>
+    <p>Paste a batch from <strong>Teacher Tools → Prepare ECC Emails</strong>. Review every recipient and message before sending. The checkbox in ECC stays checked.</p>
+    <label for="batch">Batch JSON</label>
+    <textarea id="batch" spellcheck="false" rows="8" placeholder="Paste the batch JSON here"></textarea>
+    <div class="actions">
+      <button id="review">Review batch</button>
+      <button id="send" disabled>Send reviewed messages</button>
+      <button id="stop" disabled>Stop after current message</button>
+    </div>
+    <p id="status" role="status"></p>
+    <section id="preview" aria-label="Messages to review"></section>
+    <section id="result" hidden>
+      <h2>Send-click receipt</h2>
+      <p>Check Outlook Sent Items. Copy this receipt into <strong>Teacher Tools → Record ECC Email Receipts</strong>. The receipt records a click, not confirmed delivery.</p>
+      <label for="saved">Saved batch</label>
+      <select id="saved"></select>
+      <textarea id="receipt" readonly rows="10"></textarea>
+      <button id="copy">Copy receipt</button>
+      <button id="clear">Delete selected saved receipt after importing</button>
+    </section>
+  </main>
+  <script src="mailer.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "ECC Outlook Mailer",
+  "version": "0.1.0",
+  "description": "Reviews and sends an ECC batch through Outlook on the web, then exports a send-click receipt.",
+  "permissions": ["tabs", "scripting", "storage"],
+  "host_permissions": [
+    "https://outlook.cloud.microsoft/*",
+    "https://outlook.office.com/*",
+    "https://outlook.office365.com/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Open ECC Outlook Mailer" }
+}

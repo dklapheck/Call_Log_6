@@ -24,6 +24,56 @@ The primary Teacher Tools actions appear in this order:
 
 Maintenance and ECC actions follow in separate menu sections.
 
+## ECC Outlook email batch
+
+The **ECC Outlook Mailer** extension in `ecc-email-extension/` sends a manually
+reviewed batch through Outlook on the web. It uses the working self-email test's
+compose URL encoding (`%20` for spaces). Preparing a batch and opening the
+workbook do not send mail.
+
+1. Deploy `EccEmailBatch.gs` and the updated `Menus.gs` to the **bound Apps
+   Script project** for the 6Roster workbook. A GitHub update alone does not
+   update the live Apps Script. Refresh the workbook to see the new menu items.
+2. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`,
+   enable Developer mode, choose **Load unpacked**, and select the
+   `ecc-email-extension` directory. Open and sign in to Outlook on the web.
+3. On **ECC**, check **Email?** for the intended rows (at most 30). Review the
+   editable **Email Reminder** or **Email Reschedule** message in each row.
+   Choose the matching **Teacher Tools → Prepare ECC … Emails** action and
+   copy the batch JSON from its dialog.
+4. Click the extension icon, paste the JSON, and choose **Review batch**.
+   Check every To, Subject, Body, and student-only warning. Click **Send
+   reviewed messages** and confirm the count. The extension opens each draft
+   in Outlook, verifies the visible To/Subject/Body and a unique Send button,
+   then clicks Send once. It stops on the first uncertain result; **Stop after
+   current message** ends the batch after the current attempt.
+5. Check **Sent Items**. Copy the extension's send-click receipt and choose
+   **Teacher Tools → Record ECC Email Receipts** in the workbook. Paste and
+   record it. Column **Attempts** gets one dated entry per clicked send with
+   an ID that prevents duplicate imports. **Email?** stays checked.
+
+The handoff reads **Prefered Name**, **Student Number**, **Student Email**,
+**Email?**, and the selected message from ECC. It matches **Student Number**
+in StudentData and adds **Learning Coach Email** when present. A missing coach
+email produces a student-only message with a visible warning. The tokens
+`[Student Preferred First Name]` and `[LC]` are substituted at preparation.
+Selected rows with invalid addresses or duplicate student numbers stop the
+whole preparation before any mail is sent.
+
+The extension keeps batch IDs and send-click receipts in extension-local
+storage, but no message bodies. You can select an older saved receipt and
+delete it after importing; a small batch-ID marker remains to prevent replay.
+A started batch cannot be replayed with the same batch ID. If Outlook or the browser fails during a send, inspect drafts
+and Sent Items before making a new batch; a click receipt does not prove
+delivery. Because **Email?** remains checked, uncheck rows you do not intend
+to include in a later batch. This version has no scheduler or automatic retry.
+
+Before using student data, smoke test one controlled student-only row and
+one controlled two-recipient row, verify the actual Outlook recipients and
+Sent Items, and import the receipts. The self-email test covered only one
+recipient; the batch extension's two-recipient send and live Apps Script
+integration have not yet been exercised.
+
 ## Demographics
 
 On **Call Entry**, **Teacher Tools > Open Demographics** uses the student currently selected in the form, regardless of which Call Entry cell is active. On another tab, select exactly one cell containing a valid Student Number before choosing the action. Multi-cell selections, blank cells, and invalid Student Numbers do not create a PowerSchool dialog.

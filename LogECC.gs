@@ -153,7 +153,7 @@ function getEccAttemptTarget_(sheet, row, cols, rendered) {
 
 function appendEccHistory_(existingText, entry) {
   const oldText = String(existingText || '').replace(/\s+$/g, '');
-  return oldText ? oldText + '\n\n' + entry : entry;
+  return oldText ? oldText + '\n' + entry : entry;
 }
 
 function eccHistoryContains_(history, entry) {

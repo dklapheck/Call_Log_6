@@ -180,8 +180,8 @@ function sendEccHandoff_(payload) {
       'Request ID: ' + requestId);
     SpreadsheetApp.flush();
   } catch (error) {
-    logAutomationEvent_('ERROR', 'ECC Handoff', '',
-      'Could not create the PowerSchool handoff.', 'Dialog creation failed.');
+    logAutomationEvent_('ERROR', 'ECC Handoff', payload && payload.studentNumber,
+      'Could not create the PowerSchool handoff.', getErrorDetails_(error));
     ss.toast('ECC handoff failed. See Automation Log.', 'ECC Handoff', 8);
   }
 }
